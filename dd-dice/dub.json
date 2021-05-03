@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"Olivier Léobal"
+	],
+	"copyright": "Copyright © 2021, Olivier Léobal",
+	"dependencies": {
+		"pegged": "~>0.4.4"
+	},
+	"description": "Dice throwing expression parser",
+	"license": "proprietary",
+	"name": "dd-dice"
+}

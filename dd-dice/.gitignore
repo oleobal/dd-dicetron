@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/dd-dice
+dd-dice.so
+dd-dice.dylib
+dd-dice.dll
+dd-dice.a
+dd-dice.lib
+dd-dice-test-*
+*.exe
+*.o
+*.obj
+*.lst
