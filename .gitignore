@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/dd-dicetron
+dd-dicetron.so
+dd-dicetron.dylib
+dd-dicetron.dll
+dd-dicetron.a
+dd-dicetron.lib
+dd-dicetron-test-*
+*.exe
+*.o
+*.obj
+*.lst
