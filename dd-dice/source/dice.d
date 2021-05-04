@@ -84,7 +84,11 @@ ExprResult eval(ParseTree tree)
 	/+ https://github.com/PhilippeSigaud/Pegged/wiki/Generating-Code
 	 + probably a more clever way to do it but I'm too stupid right now
 	 +/
-	
+	template TypeArithmeticRestriction(string var) {
+		const string TypeArithmeticRestriction =
+			q{if (}~var~q{.value.type != typeid(long) && }~var~q{.value.type != typeid(bool) )
+			throw new EvalException("Can't do arithmetic on "~}~var~q{.value.type.to!string);};
+	}
 	switch (tree.name.chompPrefix("DiceExpr."))
 	{
 		case "Comp":
@@ -139,18 +143,14 @@ ExprResult eval(ParseTree tree)
 			return result;
 		
 		
-		
-		
 		case "Term":
 			auto base = tree.children[0].eval;
-			if (base.value.type != typeid(long))
-				throw new EvalException("Can't do arithmetic on "~base.value.type.to!string);
+			mixin(TypeArithmeticRestriction!"base");
 			
 			foreach(c;tree.children[1..$])
 			{
 				const auto cfactor = c.children[0].eval;
-				if (cfactor.value.type != typeid(long))
-					throw new EvalException("Can't do arithmetic on "~cfactor.value.type.to!string);
+				mixin(TypeArithmeticRestriction!"cfactor");
 				if (c.name == "DiceExpr.Add")
 				{
 					base.value=base.value+cfactor.value;
@@ -169,13 +169,11 @@ ExprResult eval(ParseTree tree)
 		
 		case "Factor":
 			auto base = tree.children[0].eval;
-			if (base.value.type != typeid(long))
-				throw new EvalException("Can't do arithmetic on "~base.value.type.to!string);
+			mixin(TypeArithmeticRestriction!"base");
 			foreach(c;tree.children[1..$])
 			{
 				const auto cfactor = c.children[0].eval;
-				if (cfactor.value.type != typeid(long))
-					throw new EvalException("Can't do arithmetic on "~cfactor.value.type.to!string);
+				mixin(TypeArithmeticRestriction!"cfactor");
 				if (c.name == "DiceExpr.Mul")
 				{
 					base.value=base.value*cfactor.value;
