@@ -206,12 +206,14 @@ ExprResult eval(ParseTree tree)
 			// safeties at about 0.01% of long.max
 			// (this check is per dice roll, and long.max is for the entire result, so..)
 			if (noOfDice  > 9_999_999 || noOfDice<0)
-				return ExprResult(0, "[too many dice]");
+				return ExprResult(0L, "[too many dice]");
 			if (sizeOfDice>99_999_999 ||sizeOfDice<0)
-				return ExprResult(0, "[dice too large]");
+				return ExprResult(0L, "[dice too large]");
+			if (noOfDice == 0 || sizeOfDice == 0)
+				return ExprResult(0L, "[0]");
 			
 			auto dice = rollDice(noOfDice, sizeOfDice);
-			return ExprResult(dice.sum, dice.to!string);
+			return ExprResult(dice.sum, "["~dice.map!(x=>x.to!string).join("+")~"]");
 		
 		case "Neg":
 			auto base = eval(tree.children[0]);

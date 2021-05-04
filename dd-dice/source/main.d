@@ -5,7 +5,15 @@ import std.algorithm.searching;
 import dice;
 
 
-void main(string[] args)
+auto helpMsg=`d20 rolls a twenty-sided die
+5d10 rolls five ten-sided dice
+
+Arithmetic works: d20+5*3
+
+So do comparisons: d20+7>17
+You can chain them à la Python: 6<=2d20<=35`;
+
+int main(string[] args)
 {
 	auto verbose=false;
 	auto machineReadable=false;
@@ -14,14 +22,30 @@ void main(string[] args)
 	{
 		if (a =="-d" || a == "--debug")
 			verbose=true;
-		if (a == "--machine")
+		else if (a == "--machine")
 			machineReadable=true;
+		else if (a =="-h" || a == "--help")
+		{
+			writeln(helpMsg);
+			return 0;
+		}
 		else
 			expr=a;
 	}
 	auto tree = parse(expr);
 	if (verbose)
 		writeln(tree);
+	if (!tree.successful)
+	{
+		if (machineReadable)
+		{
+			writeln("\n\n"~tree.failMsg);
+			return 0;
+		}
+		writeln("Parsing error: "~tree.failMsg);
+		return 1;
+	}
+	
 	
 	
 	try
@@ -45,5 +69,5 @@ void main(string[] args)
 		else
 			throw e;
 	}
-	
+	return 0;
 }

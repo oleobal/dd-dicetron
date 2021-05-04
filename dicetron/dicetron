@@ -15,15 +15,29 @@ async def on_message(message):
         return
 
     if message.content.startswith('!r'):
-        await message.channel.send(message.author.name+" "+roll_dice(message.content[2:]))
+        if message.content[2:].strip().casefold() == "help":
+            await message.channel.send("```\n"+get_dice_help()+"\nText after # is a comment\n```")
+            return
+        dice_expr, *comment = message.content[2:].split("#", maxsplit=1)
+        response = message.author.name+" "+("_"+comment[0].strip()+"_ " if comment else "")+roll_dice(dice_expr)
+        await message.channel.send(response)
+
+def get_dice_help():
+    p = subprocess.run([os.environ["DD_DICE_PATH"], "--help"], capture_output=True)
+    if p.returncode == 0:
+        return p.stdout.decode("utf-8")
+    else:
+        return "Error"
 
 def roll_dice(expr):
     p = subprocess.run([os.environ["DD_DICE_PATH"], "--machine", expr], capture_output=True)
     if p.returncode == 0:
-        lines= p.stdout.decode("utf-8").strip().split("\n")
+        lines= p.stdout.decode("utf-8").split("\n")
         if len(lines[0])>500:
             lines[0]="[too long]"
-        return "`"+lines[0]+"`: **"+lines[1]+"**"+(lines[2] if len(lines)>2 else "")
+        if len(lines[2]) > 0: # error
+            return ":warning: "+lines[2]
+        return "`"+lines[0]+"`: **"+lines[1]+"**"
     else:
         return "Error"
 
