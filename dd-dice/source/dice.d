@@ -14,34 +14,34 @@ import pegged.grammar;
 
 mixin(grammar(`
 DiceExpr:
-    BTerm    < BFactor (Eq / NEq / Inf / InfEq / Sup / SupEq)*
-    Eq       < "==" BFactor
-    NEq      < "!=" BFactor
-    Inf      < "<" BFactor
-    InfEq    < "<=" BFactor
-    Sup      < ">" BFactor
-    SupEq    < ">=" BFactor
-    BFactor  < Not / Parens / Term
-    BParens  < "(" BFactor ")"
-    Not      < "!" BFactor
-    
-    Term     < Factor (Add / Sub)*
-    Add      < "+" Factor
-    Sub      < "-" Factor
-    Factor   < Primary (Mul / Div)*
-    Mul      < "*" Primary
-    Div      < "/" Primary
-    Primary  < MulDie / Parens / Neg / Pos / Die / Number 
-    Parens   < "(" Term ")"
-    Neg      < "-" Primary
-    Pos      < "+" Primary
-    MulDie   < Primary Die
-    Die      < "d" Number
-    Number   < ~([0-9]+)
+	Expr     < Comp / Term
+	
+	Comp     < Term (Eq / NEq / Inf / InfEq / Sup / SupEq)+
+	
+	Eq       < "==" Term
+	NEq      < "!=" Term
+	Inf      < "<"  Term
+	InfEq    < "<=" Term
+	Sup      < ">"  Term
+	SupEq    < ">=" Term
+	
+	
+	Term     < Factor (Add / Sub)*
+	Add      < "+" Factor
+	Sub      < "-" Factor
+	Factor   < Primary (Mul / Div)*
+	Mul      < "*" Primary
+	Div      < "/" Primary
+	Primary  < MulDie / Parens / Not / Neg / Pos / Die / Number 
+	Parens   < "(" Expr ")"
+	Not      < "!" Primary
+	Neg      < "-" Primary
+	Pos      < "+" Primary
+	MulDie   < Primary Die
+	Die      < "d" Number
+	Number   < ~([0-9]+)
 `));
 
-
-// I separate them because I don't see a use case for casting between those types so no need to bundle everything together
 
 auto parse(string expr)
 {
@@ -61,7 +61,7 @@ long[] rollDice(long number, long die)
 struct ExprResult {
 	Algebraic!(long, bool, string) result;
 	string repr;
-	this (long    a, string b) { result = a; repr = b; }
+	this (long   a, string b) { result = a; repr = b; }
 	this (bool   a, string b) { result = a; repr = b; }
 	this (string a, string b) { result = a; repr = b; }
 }
@@ -79,21 +79,56 @@ ExprResult resolve(ParseTree tree)
 	
 	switch (tree.name.chompPrefix("DiceExpr."))
 	{
-		case "BTerm":
-			auto base = tree.children[0].resolve;
+		case "Comp":
+			auto previousOperand = tree.children[0].resolve;
+			auto result = ExprResult(true, previousOperand.repr);
 			foreach(c;tree.children[1..$])
 			{
-				throw new Exception("To be implemented");
+				// Python-style chained comparisons https://docs.python.org/3.8/reference/expressions.html#comparisons
+				auto secondOperand = c.children[0].resolve;
+				
+				if (previousOperand.result.type != secondOperand.result.type)
+					throw new Exception(
+						"Can't compare values of type "
+						~previousOperand.result.type.to!string
+						~" and "~secondOperand.result.type.to!string
+					);
+				bool thisOpResult;
+				if (c.name == "DiceExpr.Eq")
+					thisOpResult = previousOperand.result == secondOperand.result;
+				else if (c.name == "DiceExpr.NEq")
+					thisOpResult = previousOperand.result != secondOperand.result;
+					
+				else
+				{
+					if (previousOperand.result.type != typeid(long))
+						throw new Exception(
+							"Can't do other comparisons than equality on "~previousOperand.result.type.to!string
+						);
+					switch (c.name.chompPrefix("DiceExpr."))
+					{
+						case "Inf":
+							thisOpResult = previousOperand.result < secondOperand.result;
+							break;
+						case "InfEq":
+							thisOpResult = previousOperand.result <= secondOperand.result;
+							break;
+						case "Sup":
+							thisOpResult = previousOperand.result > secondOperand.result;
+							break;
+						case "SupEq":
+							thisOpResult = previousOperand.result >= secondOperand.result;
+							break;
+						default:
+							throw new Exception("Unhandled comparison: "~c.name);
+					}
+					
+				}
+				result.result = result.result.get!bool && thisOpResult;
+				result.repr = result.repr ~ c.matches[0] ~secondOperand.repr;
+				previousOperand = secondOperand;
 			}
-			return base;
-		
-		case "BFactor":
-			auto base = tree.children[0].resolve;
-			foreach(c;tree.children[1..$])
-			{
-				throw new Exception("To be implemented");
-			}
-			return base;
+			return result;
 		
 		
 		
@@ -178,6 +213,7 @@ ExprResult resolve(ParseTree tree)
 			return ExprResult(tree.matches[0].to!long, tree.matches[0]);
 		
 		case "DiceExpr":
+		case "Expr":
 		case "Pos":
 		case "Primary":
 			return tree.children[0].resolve;
