@@ -1,4 +1,5 @@
 FROM ubuntu:hirsute AS build
+ENV DEBIAN_FRONTEND=noninteractive 
 
 RUN \
   apt-get -qq update && \
