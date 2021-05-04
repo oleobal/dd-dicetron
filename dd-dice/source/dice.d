@@ -59,19 +59,27 @@ long[] rollDice(long number, long die)
  + strings for name dice and also errors >_>
  +/
 struct ExprResult {
-	Algebraic!(long, bool, string) result;
+	Algebraic!(long, bool, string) value;
 	string repr;
-	this (long   a, string b) { result = a; repr = b; }
-	this (bool   a, string b) { result = a; repr = b; }
-	this (string a, string b) { result = a; repr = b; }
+	this (long   a, string b) { value = a; repr = b; }
+	this (bool   a, string b) { value = a; repr = b; }
+	this (string a, string b) { value = a; repr = b; }
 }
-auto resolve(string expr)
+
+class EvalException : Exception
 {
-	return expr.parse.resolve;
+	this(string msg, string file = __FILE__, size_t line = __LINE__) {
+        super(msg, file, line);
+    }
+}
+
+auto eval(string expr)
+{
+	return expr.parse.eval;
 }
 
 
-ExprResult resolve(ParseTree tree)
+ExprResult eval(ParseTree tree)
 {
 	/+ https://github.com/PhilippeSigaud/Pegged/wiki/Generating-Code
 	 + probably a more clever way to do it but I'm too stupid right now
@@ -80,51 +88,51 @@ ExprResult resolve(ParseTree tree)
 	switch (tree.name.chompPrefix("DiceExpr."))
 	{
 		case "Comp":
-			auto previousOperand = tree.children[0].resolve;
+			auto previousOperand = tree.children[0].eval;
 			auto result = ExprResult(true, previousOperand.repr);
 			foreach(c;tree.children[1..$])
 			{
 				// Python-style chained comparisons https://docs.python.org/3.8/reference/expressions.html#comparisons
-				auto secondOperand = c.children[0].resolve;
+				auto secondOperand = c.children[0].eval;
 				
-				if (previousOperand.result.type != secondOperand.result.type)
-					throw new Exception(
+				if (previousOperand.value.type != secondOperand.value.type)
+					throw new EvalException(
 						"Can't compare values of type "
-						~previousOperand.result.type.to!string
-						~" and "~secondOperand.result.type.to!string
+						~previousOperand.value.type.to!string
+						~" and "~secondOperand.value.type.to!string
 					);
 				bool thisOpResult;
 				if (c.name == "DiceExpr.Eq")
-					thisOpResult = previousOperand.result == secondOperand.result;
+					thisOpResult = previousOperand.value == secondOperand.value;
 				else if (c.name == "DiceExpr.NEq")
-					thisOpResult = previousOperand.result != secondOperand.result;
+					thisOpResult = previousOperand.value != secondOperand.value;
 					
 				else
 				{
-					if (previousOperand.result.type != typeid(long))
-						throw new Exception(
-							"Can't do other comparisons than equality on "~previousOperand.result.type.to!string
+					if (previousOperand.value.type != typeid(long))
+						throw new EvalException(
+							"Can't do other comparisons than equality on "~previousOperand.value.type.to!string
 						);
 					switch (c.name.chompPrefix("DiceExpr."))
 					{
 						case "Inf":
-							thisOpResult = previousOperand.result < secondOperand.result;
+							thisOpResult = previousOperand.value < secondOperand.value;
 							break;
 						case "InfEq":
-							thisOpResult = previousOperand.result <= secondOperand.result;
+							thisOpResult = previousOperand.value <= secondOperand.value;
 							break;
 						case "Sup":
-							thisOpResult = previousOperand.result > secondOperand.result;
+							thisOpResult = previousOperand.value > secondOperand.value;
 							break;
 						case "SupEq":
-							thisOpResult = previousOperand.result >= secondOperand.result;
+							thisOpResult = previousOperand.value >= secondOperand.value;
 							break;
 						default:
-							throw new Exception("Unhandled comparison: "~c.name);
+							throw new EvalException("Unhandled comparison: "~c.name);
 					}
 					
 				}
-				result.result = result.result.get!bool && thisOpResult;
+				result.value = result.value.get!bool && thisOpResult;
 				result.repr = result.repr ~ c.matches[0] ~secondOperand.repr;
 				previousOperand = secondOperand;
 			}
@@ -134,43 +142,52 @@ ExprResult resolve(ParseTree tree)
 		
 		
 		case "Term":
-			auto base = tree.children[0].resolve;
+			auto base = tree.children[0].eval;
+			if (base.value.type != typeid(long))
+				throw new EvalException("Can't do arithmetic on "~base.value.type.to!string);
+			
 			foreach(c;tree.children[1..$])
 			{
-				const auto cfactor = c.children[0].resolve;
+				const auto cfactor = c.children[0].eval;
+				if (cfactor.value.type != typeid(long))
+					throw new EvalException("Can't do arithmetic on "~cfactor.value.type.to!string);
 				if (c.name == "DiceExpr.Add")
 				{
-					base.result=base.result+cfactor.result;
+					base.value=base.value+cfactor.value;
 					base.repr=base.repr~"+"~cfactor.repr;
 				}
 				else if (c.name == "DiceExpr.Sub")
 				{
-					base.result=base.result-cfactor.result;
+					base.value=base.value-cfactor.value;
 					base.repr=base.repr~"-"~cfactor.repr;
 				}
 				else
-					throw new Exception("Unhandled factor: "~c.name);
+					throw new EvalException("Unhandled factor: "~c.name);
 				
 			}
 			return base;
 		
 		case "Factor":
-			auto base = tree.children[0].resolve;
+			auto base = tree.children[0].eval;
+			if (base.value.type != typeid(long))
+				throw new EvalException("Can't do arithmetic on "~base.value.type.to!string);
 			foreach(c;tree.children[1..$])
 			{
-				const auto cfactor = c.children[0].resolve;
+				const auto cfactor = c.children[0].eval;
+				if (cfactor.value.type != typeid(long))
+					throw new EvalException("Can't do arithmetic on "~cfactor.value.type.to!string);
 				if (c.name == "DiceExpr.Mul")
 				{
-					base.result=base.result*cfactor.result;
+					base.value=base.value*cfactor.value;
 					base.repr=base.repr~"*"~cfactor.repr;
 				}
 				else if (c.name == "DiceExpr.Div")
 				{
-					base.result=base.result/cfactor.result;
+					base.value=base.value/cfactor.value;
 					base.repr=base.repr~"/"~cfactor.repr;
 				}
 				else
-					throw new Exception("Unhandled factor: "~c.name);
+					throw new EvalException("Unhandled factor: "~c.name);
 				
 			}
 			return base;
@@ -181,11 +198,11 @@ ExprResult resolve(ParseTree tree)
 			auto noOfDice = 1L, sizeOfDice = 1L;
 			if (tree.name == "DiceExpr.MulDie")
 			{
-				noOfDice = tree.children[0].resolve.result.coerce!long;
-				sizeOfDice = tree.children[1].children[0].resolve.result.coerce!long;
+				noOfDice = tree.children[0].eval.value.coerce!long;
+				sizeOfDice = tree.children[1].children[0].eval.value.coerce!long;
 			}
 			else
-				sizeOfDice = tree.children[0].resolve.result.coerce!long;
+				sizeOfDice = tree.children[0].eval.value.coerce!long;
 			// safeties at about 0.01% of long.max
 			// (this check is per dice roll, and long.max is for the entire result, so..)
 			if (noOfDice  > 9_999_999 || noOfDice<0)
@@ -197,14 +214,20 @@ ExprResult resolve(ParseTree tree)
 			return ExprResult(dice.sum, dice.to!string);
 		
 		case "Neg":
-			auto base = resolve(tree.children[0]);
-			base.result = -base.result.coerce!long;
+			auto base = eval(tree.children[0]);
+			base.value = -base.value.get!long;
 			base.repr = "-"~base.repr;
+			return base;
+		
+		case "Not":
+			auto base = eval(tree.children[0]);
+			base.value = !base.value.get!bool;
+			base.repr = "!"~base.repr;
 			return base;
 		
 		case "Parens":
 		case "BParens":
-			auto base = resolve(tree.children[0]);
+			auto base = eval(tree.children[0]);
 			base.repr = "("~base.repr~")";
 			return base;
 			
@@ -216,10 +239,10 @@ ExprResult resolve(ParseTree tree)
 		case "Expr":
 		case "Pos":
 		case "Primary":
-			return tree.children[0].resolve;
+			return tree.children[0].eval;
 		
 		default:
-			throw new Exception("Unknown case: "~tree.name);
+			throw new EvalException("Unknown case: "~tree.name);
 	}
 	
 }
