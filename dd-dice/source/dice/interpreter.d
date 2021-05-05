@@ -1,4 +1,4 @@
-module dice;
+module dice.interpreter;
 
 import std.string;
 import std.variant;
@@ -7,56 +7,12 @@ import std.random;
 import std.range;
 import std.array;
 import std.algorithm.iteration;
+import std.algorithm.mutation;
 
-import pegged.grammar;
-
-
-
-mixin(grammar(`
-DiceExpr:
-	Expr     < Comp / Term
-	
-	Comp     < Term (Eq / NEq / Inf / InfEq / Sup / SupEq)+
-	
-	Eq       < "==" Term
-	NEq      < "!=" Term
-	Inf      < "<"  Term
-	InfEq    < "<=" Term
-	Sup      < ">"  Term
-	SupEq    < ">=" Term
-	
-	
-	Term     < Factor (Add / Sub)*
-	Add      < "+" Factor
-	Sub      < "-" Factor
-	Factor   < Primary (Mul / Div)*
-	Mul      < "*" Primary
-	Div      < "/" Primary
-	Primary  < MulDie / Parens / Not / Neg / Pos / Die / Number 
-	Parens   < "(" Expr ")"
-	Not      < "!" Primary
-	Neg      < "-" Primary
-	Pos      < "+" Primary
-	MulDie   < Primary Die
-	Die      < "d" Number
-	Number   < ~([0-9]+)
-`));
+import dice.parser;
+import dice.roll;
 
 
-auto parse(string expr)
-{
-	return DiceExpr(expr);
-}
-
-
-long[] rollDice(long number, long die)
-{
-	return generate!(() => uniform!"[]"(1, die)).takeExactly(number).array;
-}
-bool[] flipCoins(long number)
-{
-	return generate!(() => [true, false].choice).takeExactly(number).array;
-}
 
 struct ExprResult {
 	Algebraic!(long, long[], bool, bool[]) value;
@@ -213,6 +169,20 @@ ExprResult eval(ParseTree tree)
 				
 			}
 			return base;
+		
+		// https://github.com/PhilippeSigaud/Pegged/wiki/Semantic-Actions
+		// can get that working for UFCS (it would be better..)
+		case "DotCall":
+			auto funcName = tree.children[1];
+			auto firstArg = tree.children[0];
+			tree.children[0] = funcName;
+			tree.children[1] = firstArg;
+			goto case;
+		case "FunCall":
+			//auto args = tree.children[1..$].map!(x=>x.to!byte.to!string)
+			//callFunction()
+			return ExprResult(0, "to be implemented");
+		
 		
 		
 		case "MulDie":
