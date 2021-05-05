@@ -141,18 +141,37 @@ ExprResult eval(ParseTree tree)
 			if (tree.children.length == 1)
 				return tree.children[0].eval;
 			auto base = tree.children[0].eval.reduced;
-			mixin(TypeArithmeticRestriction!"base");
+			if (!(  (base.type == ExprDataType.NUM && !base.isArray)
+			      ||(base.type == ExprDataType.STR && base.isArray)))
+				throw new Exception("Can't do arithmetic on "~base.repr);
 			foreach(c;tree.children[1..$])
 			{
-				immutable auto cfactor = c.children[0].eval.reduced;
-				mixin(TypeArithmeticRestriction!"cfactor");
+				auto cfactor = c.children[0].eval.reduced;
+				if (!( (cfactor.type == ExprDataType.NUM && !cfactor.isArray )
+				    || (cfactor.type == ExprDataType.STR && cfactor.isArray)))
+					throw new Exception("Can't do arithmetic on "~cfactor.repr);
+				
 				if (c.name == "DiceExpr.Add")
 				{
-					base.value=base.value+cfactor.value;
+					// asserted earlier NUM aren't arrays and STR are
+					if (base.type == ExprDataType.STR || cfactor.type == ExprDataType.STR)
+					{
+						if (base.type != ExprDataType.STR)
+							base = ExprResult([base.value.coerce!string], base.repr);
+						if (cfactor.type != ExprDataType.STR)
+							cfactor = ExprResult([cfactor.value.coerce!string], cfactor.repr);
+						base.value=base.value~cfactor.value;
+					}
+					else if (base.type == ExprDataType.NUM && cfactor.type == ExprDataType.NUM)
+						base.value=base.value+cfactor.value;
+					else
+						throw new Exception("Can't add terms "~base.repr~" and "~cfactor.repr);
 					base.repr=base.repr~"+"~cfactor.repr;
 				}
 				else if (c.name == "DiceExpr.Sub")
 				{
+					if (base.type != ExprDataType.NUM || cfactor.type != ExprDataType.NUM)
+						throw new Exception("Can't substract terms "~base.repr~" and "~cfactor.repr);
 					base.value=base.value-cfactor.value;
 					base.repr=base.repr~"-"~cfactor.repr;
 				}

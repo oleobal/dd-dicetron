@@ -60,8 +60,10 @@ Represent "Picture Dice", with symbols or words on their faces instead of number
 Can't be reduced.
 
 Concatenation of strings make no sense (who concatenates DICE?). Concatenating
-lists of dice however does, and we can use the `+` operator. Question however:
-should lists of number dice be reduced beforehand?
+lists of dice however does, and we can use the `+` operator.
+
+Question however: should lists of number dice be reduced beforehand? Right now,
+they are.
 
 
 
