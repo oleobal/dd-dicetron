@@ -6,21 +6,29 @@ import std.conv;
 import std.random;
 import std.range;
 import std.array;
-import std.algorithm.iteration;
-import std.algorithm.mutation;
+import std.algorithm;
 
 import dice.parser;
 import dice.roll;
 
 
+enum ExprDataType { NUM, STR }
 
 struct ExprResult {
 	Algebraic!(long, long[], bool, bool[]) value;
+	
+	// terrible for sure but what can you do, I can't interact with the D type system at runtime
+	ExprDataType type;
+	bool isArray = false;
+	bool isBool = false;
+	
 	string repr;
-	this (long   a, string b) { value = a; repr = b; }
-	this (long[] a, string b) { value = a; repr = b; }
-	this (bool   a, string b) { value = a; repr = b; }
-	this (bool[] a, string b) { value = a; repr = b; }
+	
+	
+	this (long   a, string b) { value = a; repr = b; type=ExprDataType.NUM;}
+	this (long[] a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true;}
+	this (bool   a, string b) { value = a; repr = b; type=ExprDataType.NUM; isBool=true;}
+	this (bool[] a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true; isBool=true;}
 	
 	ExprResult reduced() const
 	{
@@ -179,9 +187,11 @@ ExprResult eval(ParseTree tree)
 			tree.children[1] = firstArg;
 			goto case;
 		case "FunCall":
-			//auto args = tree.children[1..$].map!(x=>x.to!byte.to!string)
-			//callFunction()
-			return ExprResult(0, "to be implemented");
+			return callFunction(
+				tree.children[0].matches[0],
+				tree.children[1..$].map!(a=>a.eval).array,
+				tree.name.chompPrefix("DiceExpr.")
+			);
 		
 		
 		
@@ -254,3 +264,56 @@ ExprResult eval(ParseTree tree)
 	}
 	
 }
+
+ExprResult callFunction(string name, ExprResult[] args, string callingStyle="FunCall")
+{
+	string repr;
+	if (callingStyle == "DotCall" && args.length>0)
+	{
+		repr = args[0].repr~"."~name;
+		if (args.length>1)
+			repr~="("~args[1..$].map!(a=>a.repr).join(", ")~")";
+	}
+	else
+		repr = name~"("~args.map!(a=>a.repr).join(", ")~")";
+	
+	auto best(alias predicate)(ExprResult[] args)
+	{
+		auto nbToTake=1L;
+		if (args.length>2)
+			throw new Exception("too many arguments");
+		if (args.length==2)
+			nbToTake=args[1].value.get!long;
+		if (nbToTake<=0)
+			nbToTake=max(0, args[0].value.length);
+		if (args[0].type != ExprDataType.NUM)
+			throw new Exception("only numeric types handled");
+		if (args[0].isArray)
+		{
+			if (args[0].isBool)
+				return ExprResult(args[0].value.get!(bool[]).sort!(predicate)[0..nbToTake].array, "");
+			else
+				return ExprResult(args[0].value.get!(long[]).sort!(predicate)[0..nbToTake].array, "");
+		}
+		else
+			return args[0];
+	}
+	
+	
+	ExprResult res;
+	switch (name)
+	{
+		case "best":
+			res = best!"a > b"(args);
+			break;
+		case "worst":
+			res = best!"a < b"(args);
+			break;
+		default:
+			throw new Exception("Unknown function: "~name);
+	}
+	
+	res.repr = repr;
+	return res;
+}
+

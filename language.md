@@ -33,7 +33,7 @@ Rolls are "reduced" to the sum of their parts when subject to arithmetic or
 comparisons (a roll of 1 bool is reduced to that bool).
 Also a roll of 0 dice returns `0`, not `[0]`.
 
-The reason for preserving the rolls is that some planned functions
+The reason for preserving the rolls is that some functions
 (like "roll 5 take the best 2") actually need the full list of rolls.
 
 We could conceivably have two types of lists of numbers, ones that are silently
@@ -61,12 +61,19 @@ can't be reducible). There would be a new syntax for this: `2d[head, tails]`
 
 ## Functions
 
-The big one: what we need is obviously function composition.
+Two kind of function calls:
+ - `FunCall` is prefix
+ - `DotCall` is infix
 
-Ideally either prefix (`abs(d10-7)` or infix `(d10-7).abs`)
+There's a primitive kind of UFCS in that both are valid, but it's not in the
+syntax, the interpreter does it. Functions themselves are written in D and have
+to validate their input themselves. The whole thing is a bit messy but it works
+well externally so I don't expect to actually clean it up ever.
 
-The nice thing with function is that everything else can be rewritten as a 
-special case of them.
+The nice thing with functions is that everything else can be rewritten as a 
+special case of them. `5d2` or `3*4` are just infix calls to the `d` and `*`
+functions after all. I might do it later so all functions live in their own
+little world (OK, it's unlikely to happen).
 
 ## Arithmetic division
 

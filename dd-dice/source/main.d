@@ -6,13 +6,20 @@ import std.algorithm.searching;
 import dice;
 
 
-auto helpMsg=`d20 rolls a twenty-sided die
-5d10 rolls five ten-sided dice
+auto helpMsg=`
+Roll a twenty-sided die:          d20
+  five ten-sided dice:            5d10
 
-Arithmetic works: d20+5*3
+Arithmetic works:                 d20+5*3
 
-So do comparisons: d20+7>17
-You can chain them à la Python: 6<=2d20<=35`;
+So do comparisons:                d20+7>17
+  chain them à la Python:         6<=2d20<=35
+
+Results can be filtered:
+  the best of the two rolls:      2d20.best  
+  the 3 best:                     4d20.best(3)
+  the 2 average ones:             4d20.best(3).worst(2)
+`[1..$-1];
 
 int main(string[] args)
 {
