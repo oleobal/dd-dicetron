@@ -22,19 +22,24 @@ DiceExpr:
 	Factor   < Primary (Mul / Div)*
 	Mul      < "*" Primary
 	Div      < "/" Primary
-	Primary  < DotCall / FunCall / MulDie / Parens / Not / Neg / Pos / Die / Number 
+	Primary  < DotCall / FunCall / MulDie / Parens / Not / Neg / Pos / Die / PictDie / Number 
 	Parens   < "(" Expr ")"
 	Not      < "!" Primary
 	Neg      < "-" Primary
 	Pos      < "+" Primary
-	MulDie   < Primary Die
-	Die      < "d" Number
+	MulDie   < Primary (Die / PictDie)
+	Die      < "d"i Number
+	PictDie  < "d"i "[" UnqStr ("," UnqStr )* "]"
 	Number   < ~([0-9]+)
 	
 	DotCall  < Primary "." Variable ( "(" ( Expr ("," Expr )* )? ")" )?
 	FunCall  < Variable "(" ( Expr ("," Expr )* )? ")"
 	
 	Variable < identifier
+	UnqStr   <~ String / [a-zA-Z0-9]+
+	String   <~ :doublequote (!doublequote DQChar)* :doublequote / :quote (!quote SQChar)* :quote
+	DQChar   <~ :backslash (doublequote / backslash) / .
+	SQChar   <~ :backslash (quote / backslash) / .
 `));
 
 

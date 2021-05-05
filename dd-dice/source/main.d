@@ -2,6 +2,7 @@ module main;
 
 import std.stdio;
 import std.algorithm.searching;
+import std.array;
 
 import dice;
 
@@ -19,6 +20,9 @@ Results can be filtered:
   the best of the two rolls:      2d20.best  
   the 3 best:                     4d20.best(3)
   the 2 average ones:             4d20.best(3).worst(2)
+
+Dice with words:                  2d[pizza, burger, salad]
+  quote non-alphanumeric faces:   d["🍕", "🍔", "🥗", "Not hungry"]
 `[1..$-1];
 
 int main(string[] args)
@@ -62,6 +66,8 @@ int main(string[] args)
 		string prettyResult;
 		if (result.value.type == typeid(bool))
 			prettyResult=result.value.get!bool?"Success":"Failure";
+		else if (result.value.type == typeid(string[]))
+			prettyResult=result.value.get!(string[]).join(", ");
 		else
 			prettyResult=result.value.coerce!string;
 		

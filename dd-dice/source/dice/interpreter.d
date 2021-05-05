@@ -12,10 +12,10 @@ import dice.parser;
 import dice.roll;
 
 
-enum ExprDataType { NUM, STR }
+enum ExprDataType { NUM, STR } // bool is num
 
 struct ExprResult {
-	Algebraic!(long, long[], bool, bool[]) value;
+	Algebraic!(long, long[], bool, bool[], string, string[]) value;
 	
 	// terrible for sure but what can you do, I can't interact with the D type system at runtime
 	ExprDataType type;
@@ -25,12 +25,15 @@ struct ExprResult {
 	string repr;
 	
 	
-	this (long   a, string b) { value = a; repr = b; type=ExprDataType.NUM;}
-	this (long[] a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true;}
-	this (bool   a, string b) { value = a; repr = b; type=ExprDataType.NUM; isBool=true;}
-	this (bool[] a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true; isBool=true;}
+	this (long   a, string b)   { value = a; repr = b; type=ExprDataType.NUM;}
+	this (long[] a, string b)   { value = a; repr = b; type=ExprDataType.NUM; isArray=true;}
+	this (bool   a, string b)   { value = a; repr = b; type=ExprDataType.NUM; isBool=true;}
+	this (bool[] a, string b)   { value = a; repr = b; type=ExprDataType.NUM; isArray=true; isBool=true;}
+	this (string   a, string b) { value = a; repr = b; type=ExprDataType.STR;}
+	this (string[] a, string b) { value = a; repr = b; type=ExprDataType.STR; isArray=true;}
 	
-	ExprResult reduced() const
+	
+	ExprResult reduced()
 	{
 		if (value.type == typeid(long[]))
 			return ExprResult(value.get!(long[]).sum, repr);
@@ -45,6 +48,12 @@ struct ExprResult {
 			return ExprResult(value.get!long, repr);
 		if (value.type == typeid(bool))
 			return ExprResult(value.get!bool, repr);
+		
+		if (value.type == typeid(string))
+			return ExprResult(value.get!string, repr);
+		if (value.type == typeid(string[]))
+			return ExprResult(value.get!(string[]), repr);
+		
 		throw new Exception("Unhandled type: "~value.type.to!string);
 	}
 }
@@ -68,7 +77,7 @@ ExprResult eval(ParseTree tree)
 	 + probably a more clever way to do it but I'm too stupid right now
 	 +/
 	template TypeArithmeticRestriction(string var) {
-		const string TypeArithmeticRestriction =
+		immutable string TypeArithmeticRestriction =
 		q{
 		if (}~var~q{.value.type != typeid(long) && }~var~q{.value.type != typeid(bool) )
 			throw new EvalException("Can't do arithmetic on "~}~var~q{.value.type.to!string);
@@ -135,7 +144,7 @@ ExprResult eval(ParseTree tree)
 			mixin(TypeArithmeticRestriction!"base");
 			foreach(c;tree.children[1..$])
 			{
-				const auto cfactor = c.children[0].eval.reduced;
+				immutable auto cfactor = c.children[0].eval.reduced;
 				mixin(TypeArithmeticRestriction!"cfactor");
 				if (c.name == "DiceExpr.Add")
 				{
@@ -160,7 +169,7 @@ ExprResult eval(ParseTree tree)
 			mixin(TypeArithmeticRestriction!"base");
 			foreach(c;tree.children[1..$])
 			{
-				const auto cfactor = c.children[0].eval.reduced;
+				immutable auto cfactor = c.children[0].eval.reduced;
 				mixin(TypeArithmeticRestriction!"cfactor");
 				if (c.name == "DiceExpr.Mul")
 				{
@@ -197,38 +206,46 @@ ExprResult eval(ParseTree tree)
 		
 		case "MulDie":
 		case "Die":
-			auto noOfDice = 1L, sizeOfDice = 1L;
+		case "PictDie":
+			auto noOfDice = 1L;
+			auto die=tree;
 			if (tree.name == "DiceExpr.MulDie")
 			{
+				die = tree.children[1];
 				noOfDice = tree.children[0].eval.value.coerce!long;
-				sizeOfDice = tree.children[1].children[0].eval.value.coerce!long;
+			}
+			
+			if (die.name == "DiceExpr.Die")
+			{
+				auto sizeOfDice = die.children[0].eval.value.coerce!long;
+				// safeties at about 0.01% of long.max
+				// (this check is per dice roll, and long.max is for the entire result, so..)
+				if (noOfDice  > 9_999_999 || noOfDice<0)
+					return ExprResult(0L, "[too many dice]");
+				if (sizeOfDice>99_999_999 ||sizeOfDice<0)
+					return ExprResult(0L, "[dice too large]");
+				if (noOfDice == 0)
+					return ExprResult(0, "[0]");
+				
+				
+				if (sizeOfDice <= 2)
+				{
+					auto dice = flipCoins(noOfDice, sizeOfDice);
+					return ExprResult(dice, "["~dice.map!(x=>x.to!byte.to!string).join("+")~"]");
+				}
+				
+				auto dice = rollDice(noOfDice, sizeOfDice);
+				return ExprResult(dice, "["~dice.map!(x=>x.to!string).join("+")~"]");
+			}
+			else if (die.name == "DiceExpr.PictDie")
+			{
+				auto choices = die.children.map!(x=>x.eval.reduced.value.get!string);
+				string[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
+				return ExprResult(dice, "["~dice.join(",")~"]");
 			}
 			else
-				sizeOfDice = tree.children[0].eval.value.coerce!long;
-			// safeties at about 0.01% of long.max
-			// (this check is per dice roll, and long.max is for the entire result, so..)
-			if (noOfDice  > 9_999_999 || noOfDice<0)
-				return ExprResult(0L, "[too many dice]");
-			if (sizeOfDice>99_999_999 ||sizeOfDice<0)
-				return ExprResult(0L, "[dice too large]");
-			if (noOfDice == 0)
-				return ExprResult(0, "[0]");
+				throw new Exception("Unknown dice type: "~die.name);
 			
-			
-			if (sizeOfDice <= 2)
-			{
-				bool[] dice;
-				if (sizeOfDice == 0)
-					dice = false.repeat.takeExactly(noOfDice).array;
-				if (sizeOfDice == 1)
-					dice = true.repeat.takeExactly(noOfDice).array;
-				else if (sizeOfDice == 2)
-					dice = flipCoins(noOfDice);
-				return ExprResult(dice, "["~dice.map!(x=>x.to!byte.to!string).join("+")~"]");
-			}
-			
-			auto dice = rollDice(noOfDice, sizeOfDice);
-			return ExprResult(dice, "["~dice.map!(x=>x.to!string).join("+")~"]");
 		
 		case "Neg":
 			auto base = tree.children[0].eval.reduced;
@@ -251,6 +268,10 @@ ExprResult eval(ParseTree tree)
 		case "Number":
 			assert (tree.matches.length==1);
 			return ExprResult(tree.matches[0].to!long, tree.matches[0]);
+		
+		case "UnqStr":
+		case "String":
+			return ExprResult(tree.matches[0], '"'~tree.matches[0]~'"');
 		
 		case "DiceExpr":
 			return tree.children[0].eval.reduced;

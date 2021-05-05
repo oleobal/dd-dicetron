@@ -1,6 +1,6 @@
 # Expression language
 
-There is a formal grammar in `dd-dice/source/dice.d` so I won't comment on it.
+There is a formal grammar in `dd-dice/source/dice/parser.d` so I won't comment on it.
 However I wrote the intepreter so here's a bit about how it works.
 
 ## Dice rolling rules
@@ -17,11 +17,13 @@ _Where `x` and `y` are two non-negative integers._ (the grammar is supposed not 
 
 ## Type system
 
-There are currently four types:
+There are currently six types:
  - integers (as `long`)
  - booleans (`true` and `false` in the code, but `Success` and `Failure` in the output)
+ - strings
  - list of integers
  - list of bools
+ - list of strings
 
 ### Lists & ints
 
@@ -48,16 +50,20 @@ Bools are silently cast to ints when arithmetic is performed:
  - to allow silent arithmetic between coin flips (d2) and other dice
  - to allow for things like counting the number of successes.
 
-### Planned
+### Strings
 
 I'm also planning on:
  - strings
  - list of strings
 
+Represent "Picture Dice", with symbols or words on their faces instead of numbers.
+Can't be reduced.
 
-Strings would represent the result of rolling a dice with symbols or words on
-its faces instead of numbers. List of strings for the same (and obviously they
-can't be reducible). There would be a new syntax for this: `2d[head, tails]`
+Concatenation of strings make no sense (who concatenates DICE?). Concatenating
+lists of dice however does, and we can use the `+` operator. Question however:
+should lists of number dice be reduced beforehand?
+
+
 
 ## Functions
 

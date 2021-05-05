@@ -18,6 +18,8 @@ Together they are.. ***DD-Dicetron!***
 
 ## Development
 
+Read [my notes about the language](/language.md).
+
 ### DD-Dice
 
  - Install the D development suite (a D compiler + DUB)
