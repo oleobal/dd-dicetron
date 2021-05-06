@@ -77,7 +77,29 @@ class StringList : String, List
 	this (string[] a, string b) { value = a; repr = b; }
 	override ExprResult reduced() {return cast(ExprResult) new StringList(value.get!(string[]), repr);}
 }
-
+class Function : ExprResult
+{
+	string[] args;
+	ParseTree code;
+	
+	this() {}
+	this(string[] args, ParseTree code, string repr)
+	{
+		this.args=args;
+		this.code=code;
+		this.repr=repr;
+	}
+	
+	ExprResult call(Context c)
+	{
+		return eval(code, c);
+	}
+	
+	override ExprResult reduced()
+	{
+		return cast(ExprResult) new Function(args, code, repr);
+	}
+}
 
 
 
@@ -103,7 +125,7 @@ class Context
 			if (outer)
 				return outer[i];
 			else
-				throw new Exception("undefined in context: "~i.to!string);
+				throw new Exception("Undefined: "~i.to!string);
 		}
 	}
 	
@@ -124,7 +146,7 @@ class Context
 			if (outer)
 				return outer.overwrite(key, val);
 			else
-				throw new Exception("undefined in context: "~key.to!string);
+				throw new Exception("Undefined: "~key.to!string);
 		}
 	}
 	
@@ -176,7 +198,7 @@ auto eval(string expr)
 }
 
 
-ExprResult eval(ParseTree tree, Context=new Context())
+ExprResult eval(ParseTree tree, Context context=new Context())
 {
 	/+ https://github.com/PhilippeSigaud/Pegged/wiki/Generating-Code
 	 + probably a more clever way to do it but I'm too stupid right now
@@ -325,8 +347,10 @@ ExprResult eval(ParseTree tree, Context=new Context())
 			);
 		
 		
-		//case "LambdaDef":
-			
+		case "LambdaDef":
+			auto args = tree.children[0..$-1].map!(a=>a.matches[0]).array;
+			auto repr = args.join(",")~" => "~tree.children[$-1].matches.join();
+			return cast(ExprResult) new Function(args, tree.children[$-1], repr);
 		
 		
 		case "MulDie":
@@ -397,6 +421,9 @@ ExprResult eval(ParseTree tree, Context=new Context())
 		case "UnqStr":
 		case "String":
 			return cast(ExprResult) new String(tree.matches[0], '"'~tree.matches[0]~'"');
+		
+		case "Ident":
+			return context[tree.matches[0]];
 		
 		case "DiceExpr":
 			return tree.children[0].eval.reduced;
