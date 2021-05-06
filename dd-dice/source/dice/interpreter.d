@@ -11,54 +11,72 @@ import std.algorithm;
 import dice.parser;
 import dice.roll;
 
+/// is T or a subclass of T
+bool isA(T)(const Object o)
+{
+	return (cast(T) o) ?true:false;
+}
 
-enum ExprDataType { NUM, STR } // bool is num
+/// is T, but not a subclass
+bool isExactlyA(T)(const Object o)
+{
+	return (typeid(o) == typeid(T));
+}
 
-struct ExprResult {
+
+
+abstract class ExprResult {
 	Algebraic!(long, long[], bool, bool[], string, string[]) value;
-	
-	// terrible for sure but what can you do, I can't interact with the D type system at runtime
-	ExprDataType type;
-	bool isArray = false;
-	bool isBool = false;
 	
 	string repr;
 	
 	
-	this (long     a, string b) { value = a; repr = b; type=ExprDataType.NUM;}
-	this (long[]   a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true;}
-	this (bool     a, string b) { value = a; repr = b; type=ExprDataType.NUM;               isBool=true;}
-	this (bool[]   a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true; isBool=true;}
-	this (string   a, string b) { value = a; repr = b; type=ExprDataType.STR;}
-	this (string[] a, string b) { value = a; repr = b; type=ExprDataType.STR; isArray=true;}
-	
-	
-	ExprResult reduced()
-	{
-		if (value.type == typeid(long[]))
-			return ExprResult(value.get!(long[]).sum, repr);
-		if (value.type == typeid(bool[]))
-		{
-			if (value.get!(bool[]).length == 1)
-				return ExprResult(value.get!(bool[])[0], repr);
-			return ExprResult(value.get!(bool[]).sum, repr);
-		}
-		
-		if (value.type == typeid(long))
-			return ExprResult(value.get!long, repr);
-		if (value.type == typeid(bool))
-			return ExprResult(value.get!bool, repr);
-		
-		if (value.type == typeid(string))
-			return ExprResult(value.get!string, repr);
-		if (value.type == typeid(string[]))
-			return ExprResult(value.get!(string[]), repr);
-		
-		throw new Exception("Unhandled type: "~value.type.to!string);
-	}
+	abstract ExprResult reduced();
 }
 
+interface List {}
 
+class Num : ExprResult
+{
+	this() {}
+	this (long a, string b) { value = a; repr = b; }
+	override ExprResult reduced() {return cast(ExprResult) new Num(value.get!long, repr);}
+}
+class NumList : Num, List
+{
+	this() {}
+	this (long[] a, string b) { value = a; repr = b; }
+	override ExprResult reduced() {return cast(ExprResult) new Num(value.get!(long[]).sum, repr);}
+}
+class Bool : Num
+{
+	this() {}
+	this (bool a, string b) { value = a; repr = b; }
+	override ExprResult reduced() {return cast(ExprResult) new Bool(value.get!bool, repr);}
+}
+class BoolList : Bool, List
+{
+	this() {}
+	this (bool[] a, string b) { value = a; repr = b; }
+	
+	override ExprResult reduced() {
+		if (value.get!(bool[]).length == 1)
+			return cast(ExprResult) new Bool(value.get!(bool[])[0], repr);
+		return cast(ExprResult) new Num(value.get!(bool[]).sum, repr);
+	}
+}
+class String : ExprResult
+{
+	this() {}
+	this (string a, string b) { value = a; repr = b; }
+	override ExprResult reduced() {return cast(ExprResult) new String(value.get!string, repr);}
+}
+class StringList : String, List
+{
+	this() {}
+	this (string[] a, string b) { value = a; repr = b; }
+	override ExprResult reduced() {return cast(ExprResult) new StringList(value.get!(string[]), repr);}
+}
 
 
 
@@ -174,7 +192,7 @@ ExprResult eval(ParseTree tree, Context=new Context())
 	{
 		case "Comp":
 			auto prevOperand = tree.children[0].eval.reduced;
-			auto result = ExprResult(true, prevOperand.repr);
+			auto result = cast(ExprResult) new Bool(true, prevOperand.repr);
 			foreach(c;tree.children[1..$])
 			{
 				// Python-style chained comparisons https://docs.python.org/3.8/reference/expressions.html#comparisons
@@ -228,28 +246,26 @@ ExprResult eval(ParseTree tree, Context=new Context())
 			if (tree.children.length == 1)
 				return tree.children[0].eval;
 			auto base = tree.children[0].eval.reduced;
-			if (!(  (base.type == ExprDataType.NUM && !base.isArray)
-			      ||(base.type == ExprDataType.STR && base.isArray)))
+			if (!(  (base.isA!Num && !base.isA!List) || base.isA!StringList))
 				throw new Exception("Can't do arithmetic on "~base.repr);
 			foreach(c;tree.children[1..$])
 			{
 				auto cfactor = c.children[0].eval.reduced;
-				if (!( (cfactor.type == ExprDataType.NUM && !cfactor.isArray )
-				    || (cfactor.type == ExprDataType.STR && cfactor.isArray)))
+				if (!(  (base.isA!Num && !base.isA!List) || base.isA!StringList))
 					throw new Exception("Can't do arithmetic on "~cfactor.repr);
 				
 				if (c.name == "DiceExpr.Add")
 				{
 					// asserted earlier NUM aren't arrays and STR are
-					if (base.type == ExprDataType.STR || cfactor.type == ExprDataType.STR)
+					if (base.isA!String || cfactor.isA!String)
 					{
-						if (base.type != ExprDataType.STR)
-							base = ExprResult([base.value.coerce!string], base.repr);
-						if (cfactor.type != ExprDataType.STR)
-							cfactor = ExprResult([cfactor.value.coerce!string], cfactor.repr);
+						if (!base.isA!String)
+							base = new StringList([base.value.coerce!string], base.repr);
+						if (!base.isA!String)
+							cfactor = new StringList([cfactor.value.coerce!string], cfactor.repr);
 						base.value=base.value~cfactor.value;
 					}
-					else if (base.type == ExprDataType.NUM && cfactor.type == ExprDataType.NUM)
+					else if (base.isA!Num && cfactor.isA!Num)
 						base.value=base.value+cfactor.value;
 					else
 						throw new Exception("Can't add terms "~base.repr~" and "~cfactor.repr);
@@ -257,7 +273,7 @@ ExprResult eval(ParseTree tree, Context=new Context())
 				}
 				else if (c.name == "DiceExpr.Sub")
 				{
-					if (base.type != ExprDataType.NUM || cfactor.type != ExprDataType.NUM)
+					if (!base.isA!Num || !cfactor.isA!Num)
 						throw new Exception("Can't substract terms "~base.repr~" and "~cfactor.repr);
 					base.value=base.value-cfactor.value;
 					base.repr=base.repr~"-"~cfactor.repr;
@@ -275,7 +291,7 @@ ExprResult eval(ParseTree tree, Context=new Context())
 			mixin(TypeArithmeticRestriction!"base");
 			foreach(c;tree.children[1..$])
 			{
-				immutable auto cfactor = c.children[0].eval.reduced;
+				auto cfactor = c.children[0].eval.reduced;
 				mixin(TypeArithmeticRestriction!"cfactor");
 				if (c.name == "DiceExpr.Mul")
 				{
@@ -294,7 +310,7 @@ ExprResult eval(ParseTree tree, Context=new Context())
 			return base;
 		
 		// https://github.com/PhilippeSigaud/Pegged/wiki/Semantic-Actions
-		// can get that working for UFCS (it would be better..)
+		// can't get that working for UFCS (it would be better..)
 		case "DotCall":
 			auto funcName = tree.children[1];
 			auto firstArg = tree.children[0];
@@ -330,27 +346,27 @@ ExprResult eval(ParseTree tree, Context=new Context())
 				// safeties at about 0.01% of long.max
 				// (this check is per dice roll, and long.max is for the entire result, so..)
 				if (noOfDice  > 9_999_999 || noOfDice<0)
-					return ExprResult(0L, "[too many dice]");
+					return cast(ExprResult) new Num(0L, "[too many dice]");
 				if (sizeOfDice>99_999_999 ||sizeOfDice<0)
-					return ExprResult(0L, "[dice too large]");
+					return cast(ExprResult) new Num(0L, "[dice too large]");
 				if (noOfDice == 0)
-					return ExprResult(0, "[0]");
+					return cast(ExprResult) new Num(0, "[0]");
 				
 				
 				if (sizeOfDice <= 2)
 				{
 					auto dice = flipCoins(noOfDice, sizeOfDice);
-					return ExprResult(dice, "["~dice.map!(x=>x.to!byte.to!string).join("+")~"]");
+					return cast(ExprResult) new BoolList(dice, "["~dice.map!(x=>x.to!byte.to!string).join("+")~"]");
 				}
 				
 				auto dice = rollDice(noOfDice, sizeOfDice);
-				return ExprResult(dice, "["~dice.map!(x=>x.to!string).join("+")~"]");
+				return cast(ExprResult) new NumList(dice, "["~dice.map!(x=>x.to!string).join("+")~"]");
 			}
 			else if (die.name == "DiceExpr.PictDie")
 			{
 				auto choices = die.children.map!(x=>x.eval.reduced.value.get!string);
 				string[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
-				return ExprResult(dice, "["~dice.join(",")~"]");
+				return cast(ExprResult) new StringList(dice, "["~dice.join(",")~"]");
 			}
 			else
 				throw new Exception("Unknown dice type: "~die.name);
@@ -376,11 +392,11 @@ ExprResult eval(ParseTree tree, Context=new Context())
 			
 		case "Number":
 			assert (tree.matches.length==1);
-			return ExprResult(tree.matches[0].to!long, tree.matches[0]);
+			return cast(ExprResult) new Num(tree.matches[0].to!long, tree.matches[0]);
 		
 		case "UnqStr":
 		case "String":
-			return ExprResult(tree.matches[0], '"'~tree.matches[0]~'"');
+			return cast(ExprResult) new String(tree.matches[0], '"'~tree.matches[0]~'"');
 		
 		case "DiceExpr":
 			return tree.children[0].eval.reduced;
@@ -417,14 +433,14 @@ ExprResult callFunction(string name, ExprResult[] args, string callingStyle="Fun
 			nbToTake=args[1].value.get!long;
 		if (nbToTake<=0)
 			nbToTake=max(0, args[0].value.length);
-		if (args[0].type != ExprDataType.NUM)
+		if (!args[0].isA!Num)
 			throw new Exception("only numeric types handled");
-		if (args[0].isArray)
+		if (args[0].isA!List)
 		{
-			if (args[0].isBool)
-				return ExprResult(args[0].value.get!(bool[]).sort!(predicate)[0..nbToTake].array, "");
+			if (args[0].isA!Bool)
+				return cast(ExprResult) new BoolList(args[0].value.get!(bool[]).sort!(predicate)[0..nbToTake].array, "");
 			else
-				return ExprResult(args[0].value.get!(long[]).sort!(predicate)[0..nbToTake].array, "");
+				return cast(ExprResult) new NumList(args[0].value.get!(long[]).sort!(predicate)[0..nbToTake].array, "");
 		}
 		else
 			return args[0];
