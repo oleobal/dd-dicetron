@@ -25,10 +25,10 @@ struct ExprResult {
 	string repr;
 	
 	
-	this (long   a, string b)   { value = a; repr = b; type=ExprDataType.NUM;}
-	this (long[] a, string b)   { value = a; repr = b; type=ExprDataType.NUM; isArray=true;}
-	this (bool   a, string b)   { value = a; repr = b; type=ExprDataType.NUM; isBool=true;}
-	this (bool[] a, string b)   { value = a; repr = b; type=ExprDataType.NUM; isArray=true; isBool=true;}
+	this (long     a, string b) { value = a; repr = b; type=ExprDataType.NUM;}
+	this (long[]   a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true;}
+	this (bool     a, string b) { value = a; repr = b; type=ExprDataType.NUM;               isBool=true;}
+	this (bool[]   a, string b) { value = a; repr = b; type=ExprDataType.NUM; isArray=true; isBool=true;}
 	this (string   a, string b) { value = a; repr = b; type=ExprDataType.STR;}
 	this (string[] a, string b) { value = a; repr = b; type=ExprDataType.STR; isArray=true;}
 	
@@ -294,6 +294,7 @@ ExprResult eval(ParseTree tree)
 		
 		case "DiceExpr":
 			return tree.children[0].eval.reduced;
+		case "FullExpr":
 		case "Expr":
 		case "Pos":
 		case "Primary":

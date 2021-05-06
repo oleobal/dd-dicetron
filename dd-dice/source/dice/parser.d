@@ -4,6 +4,7 @@ public import pegged.grammar;
 
 mixin(grammar(`
 DiceExpr:
+	FullExpr < Expr :EndOfInput
 	Expr     < Comp / Term
 	
 	Comp     < Term (Eq / NEq / Inf / InfEq / Sup / SupEq)+
@@ -29,17 +30,18 @@ DiceExpr:
 	Pos      < "+" Primary
 	MulDie   < Primary (Die / PictDie)
 	Die      < "d"i Number
-	PictDie  < "d"i "[" UnqStr ("," UnqStr )* "]"
+	PictDie  < "d"i "[" UnqStr ("," UnqStr )* :(",")? "]"
 	Number   < ~([0-9]+)
 	
-	DotCall  < Primary "." Variable ( "(" ( Expr ("," Expr )* )? ")" )?
-	FunCall  < Variable "(" ( Expr ("," Expr )* )? ")"
+	DotCall  < Primary "." Variable ( "(" ( Expr ("," Expr )* :(",")? )? ")" )?
+	FunCall  < Variable "(" ( Expr ("," Expr )* :(",")? )? ")"
 	
 	Variable < identifier
 	UnqStr   <~ String / [a-zA-Z0-9]+
 	String   <~ :doublequote (!doublequote DQChar)* :doublequote / :quote (!quote SQChar)* :quote
 	DQChar   <~ :backslash (doublequote / backslash) / .
 	SQChar   <~ :backslash (quote / backslash) / .
+	EndOfInput  <- !.
 `));
 
 
