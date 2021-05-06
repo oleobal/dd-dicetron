@@ -50,6 +50,9 @@ Bools are silently cast to ints when arithmetic is performed:
  - to allow silent arithmetic between coin flips (d2) and other dice
  - to allow for things like counting the number of successes.
 
+The problem is that they are silently cast to `0` and `1` but in dice rolling
+we'd expect the result of a d2 to be 1 or 2 when numeric.
+
 ### Strings
 
 I'm also planning on:

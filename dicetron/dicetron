@@ -2,6 +2,28 @@
 import discord
 import os
 import subprocess
+from collections import deque
+import re
+history_command_regex = re.compile(r"!(!|[0-9]+)")
+
+
+history = {}
+
+def add_history_item(ident, item):
+    if ident not in history:
+        history[ident] = deque(maxlen=10)
+    history[ident].appendleft(item)
+
+def get_history_item(ident, index):
+    return history.get(ident, [])[index]
+
+def get_pretty_history(ident):
+    h=history.get(ident, [])
+    msg=""
+    for i in reversed(range(len(h))):
+        msg+=f"{i:>2} {h[i]}\n"
+    return msg
+
 
 client = discord.Client()
 
@@ -15,11 +37,48 @@ async def on_message(message):
         return
 
     if message.content.startswith('!r'):
-        if message.content[2:].strip().casefold() == "help":
+        command=message.content[2:]
+        cmd_from_history=None
+        if command.strip().casefold() == "help":
             await message.channel.send("```\n"+get_dice_help()+"\nText after # is a comment\n```")
             return
-        dice_expr, *comment = message.content[2:].split("#", maxsplit=1)
-        response = message.author.name+" "+("_"+comment[0].strip()+"_ " if comment else "")+roll_dice(dice_expr)
+        elif command.strip().casefold() == "history":
+            h = get_pretty_history(message.author.id)
+            if h:
+                msg = f"History for {message.author.display_name}:\n```\n{h}\n```_(`!!` or `!<index>` to use)_"
+            else:
+                msg = f"No history for {message.author.display_name}"
+            await message.channel.send(msg)
+            return
+        elif match := history_command_regex.match(command.strip().casefold()):
+            if match.group(1) == "!":
+                index = 0
+            else:
+                index = int(match.group(1))
+            try:
+                cmd_from_history=get_history_item(message.author.id, index)
+            except IndexError:
+                await message.channel.send(f":warning: {message.author.name}: No history item №{index}")
+                return
+            
+        if cmd_from_history:
+            dice_expr, *comment = cmd_from_history.split("#", maxsplit=1)
+        else:
+            dice_expr, *comment = command.split("#", maxsplit=1)
+        went_fine, response = roll_dice(dice_expr)
+        
+        if cmd_from_history and command.strip() != "!!":
+            response_prefix =message.author.display_name+" `"+cmd_from_history+"` \n"
+        else:
+            response_prefix = message.author.display_name+" "
+        response = response_prefix + ("_"+comment[0].strip()+"_ " if comment else "")+response
+        
+        if went_fine:
+            if not cmd_from_history:
+                add_history_item(message.author.id, command)
+        else:
+            response = ":warning: "+response
+        
         await message.channel.send(response)
 
 def get_dice_help():
@@ -29,17 +88,17 @@ def get_dice_help():
     else:
         return "Error"
 
-def roll_dice(expr):
+def roll_dice(expr) -> tuple[bool, str]:
     p = subprocess.run([os.environ["DD_DICE_PATH"], "--machine", expr], capture_output=True)
     if p.returncode == 0:
         lines= p.stdout.decode("utf-8").split("\n")
         if len(lines[0])>500:
             lines[0]="[too long]"
         if len(lines[2]) > 0: # error
-            return ":warning: "+lines[2]
-        return "`"+lines[0]+"`: **"+lines[1]+"**"
+            return (False, lines[2])
+        return (True, "`"+lines[0]+"`: **"+lines[1]+"**")
     else:
-        return "Error"
+        return (False, "Error")
 
 def main():
     assert "DD_DISCORD_API_TOKEN" in os.environ
