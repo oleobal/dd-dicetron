@@ -17,12 +17,13 @@ So do comparisons:                d20+7>17
   chain them à la Python:         6<=2d20<=35
 
 Results can be filtered:
-  the best of the two rolls:      2d20.best  
-  the 3 best:                     4d20.best(3)
-  the 2 average ones:             4d20.best(3).worst(2)
+  the best of the two rolls:      2d20.best
+  the middle two of four:         4d20.best(3).worst(2)
 
 Dice with words:                  2d[pizza, burger, salad]
   quote non-alphanumeric faces:   d["🍕", "🍔", "🥗", "Not hungry"]
+
+Coin flips:                       coin     4 coins
 `[1..$-1];
 
 int main(string[] args)

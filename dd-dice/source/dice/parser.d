@@ -25,16 +25,17 @@ DiceExpr:
 	Div        < "/" Primary
 	Primary    < DotCall / FunCall / MulDie
 	             / Parens / Not / Neg / Pos
-	             / Die / PictDie / Number
+	             / Die / PictDie / Coin / Number
 	             / LambdaDef / Ident
 	Parens     < "(" Expr ")"
 	Not        < "!" Primary
 	Neg        < "-" Primary
 	Pos        < "+" Primary
-	MulDie     < Primary (Die / PictDie)
+	MulDie     < Primary (Die / PictDie / Coin)
 	Die        < "d"i Number
 	PictDie    < "d"i "[" UnqStr ("," UnqStr )* :(",")? "]"
-	Number     < ~([0-9]+)
+	Coin       <- ( "coin"i / "true"i / "false"i ) :"s"?
+	Number     <- ~([0-9]+)
 	
 	DotCall    < Primary "." Ident ( "(" ( Expr ("," Expr )* :(",")? )? ")" )?
 	FunCall    < Ident "(" ( Expr ("," Expr )* :(",")? )? ")"

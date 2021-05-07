@@ -6,6 +6,10 @@ import std.algorithm.iteration;
 
 long[] rollDice(long number, long die)
 {
+	if (die == 0)
+		return 0L.repeat.takeExactly(number).array;
+	if (die == 1)
+		return 1L.repeat.takeExactly(number).array;
 	return generate!(() => uniform!"[]"(1, die)).takeExactly(number).array;
 }
 bool[] flipCoins(long number, long die=2)

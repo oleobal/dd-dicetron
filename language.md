@@ -7,10 +7,12 @@ However I wrote the intepreter so here's a bit about how it works.
 
 
  - `0dy` returns `0`
- - `xd0` returns a list of `x` failures
- - `xd1` returns a list of `x` successes
- - `xd2` return a list of `x` random booleans (coin flips)
+ - `xd0` returns a list of `x` zeroes
+ - `xd1` returns a list of `x` ones
  - `xdy` returns `x` rolls of a `y`-sided die
+ - `xfalse(s?)` returns a list of `x` falses
+ - `xtrue(s?)` returns a list of `x` trues
+ - `xcoin(s?)` return a list of `x` random booleans (coin flips)
 
 _Where `x` and `y` are two non-negative integers._ (the grammar is supposed not to allow it)
 
@@ -28,8 +30,8 @@ There are currently six types:
 ### Lists & ints
 
 Lists represent the result of a roll:
- - booleans for d0, d1, d2
- - integers for anything else
+ - booleans for coin flips
+ - integers for dice
 
 Rolls are "reduced" to the sum of their parts when subject to arithmetic or
 comparisons (a roll of 1 bool is reduced to that bool).
@@ -44,20 +46,14 @@ point of uselessness.
 
 ### Bools
 
-Bools are also the result of a comparison.
+Bools are also the result of a comparison, or a coin flip.
+(`true` and `false` are special coin flips)
 
-Bools are silently cast to ints when arithmetic is performed:
- - to allow silent arithmetic between coin flips (d2) and other dice
- - to allow for things like counting the number of successes.
+Bools are silently cast to ints when arithmetic is performed,
+to allow for things like counting the number of successes.
 
-The problem is that they are silently cast to `0` and `1` but in dice rolling
-we'd expect the result of a d2 to be 1 or 2 when numeric.
 
 ### Strings
-
-I'm also planning on:
- - strings
- - list of strings
 
 Represent "Picture Dice", with symbols or words on their faces instead of numbers.
 Can't be reduced.

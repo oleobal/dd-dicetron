@@ -356,6 +356,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "MulDie":
 		case "Die":
 		case "PictDie":
+		case "Coin":
 			auto noOfDice = 1L;
 			auto die=tree;
 			if (tree.name == "DiceExpr.MulDie")
@@ -376,15 +377,27 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				if (noOfDice == 0)
 					return cast(ExprResult) new Num(0, "[0]");
 				
-				
-				if (sizeOfDice <= 2)
-				{
-					auto dice = flipCoins(noOfDice, sizeOfDice);
-					return cast(ExprResult) new BoolList(dice, "["~dice.map!(x=>x.to!byte.to!string).join("+")~"]");
-				}
-				
 				auto dice = rollDice(noOfDice, sizeOfDice);
 				return cast(ExprResult) new NumList(dice, "["~dice.map!(x=>x.to!string).join("+")~"]");
+			}
+			else if (die.name == "DiceExpr.Coin")
+			{
+				bool[] coins;
+				switch (die.matches[0])
+				{
+					case "coin":
+						coins = flipCoins(noOfDice);
+						break;
+					case "true":
+						coins = flipCoins(noOfDice, 1);
+						break;
+					case "false":
+						coins = flipCoins(noOfDice, 0);
+						break;
+					default:
+						throw new EvalException(`Can't flip coin `~die.matches[0]);
+				}
+				return cast(ExprResult) new BoolList(coins, "["~coins.map!(x=>x?"T":"F").join("+")~"]");
 			}
 			else if (die.name == "DiceExpr.PictDie")
 			{
