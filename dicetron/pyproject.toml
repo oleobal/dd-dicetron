@@ -1,0 +1,3 @@
+[tool.black]
+include = 'dicetron'
+exclude = 'bot-env/'
