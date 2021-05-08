@@ -76,6 +76,7 @@ class NumList : Num, List
 {
 	this() {}
 	this (long[] a, string b) { value = a.map!(it=>cast(ExprResult) new Num(it)).array; repr = b; }
+	this (ExprResult[] a) { this(a, "["~a.map!(it=>it.to!string).join("+")~"]"); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Num)) ; value = a; repr = b; }
 	override ExprResult reduced() {
 		return cast(ExprResult) new Num(value.get!(ExprResult[]).map!(it=>it.value.get!long).sum, repr);
@@ -92,13 +93,14 @@ class BoolList : Bool, List
 {
 	this() {}
 	this (bool[] a, string b) { value = a.map!(it=>cast(ExprResult) new Bool(it)).array; repr = b; }
+	this (ExprResult[] a) { this(a, "["~a.map!(it=>it.to!string).join("+")~"]"); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Bool)) ; value = a; repr = b; }
 	
 	
 	override ExprResult reduced() {
 		auto l = value.get!(ExprResult[]);
 		if (l.length == 1)
-			return cast(ExprResult) new Bool(l[0].value.get!bool, l[0].repr);
+			return cast(ExprResult) new Bool(l[0].value.get!bool, repr);
 		
 		return cast(ExprResult) new Num(l.map!(it=>it.value.get!bool).sum, repr);
 	}
@@ -114,8 +116,16 @@ class StringList : String, List
 {
 	this() {}
 	this (string[] a, string b) { value = a.map!(it=>cast(ExprResult) new String(it)).array; repr = b; }
+	this (ExprResult[] a) { this(a, a.to!string); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!String)) ; value = a; repr = b; }
 	override ExprResult reduced() {return cast(ExprResult) new StringList(value.get!(ExprResult[]), repr);}
+}
+class MixedList : String, List
+{
+	this() {}
+	this (ExprResult[] a) { value = a; repr = a.to!string; }
+	this (ExprResult[] a, string b) { value = a; repr = b; }
+	override ExprResult reduced() {return cast(ExprResult) new MixedList(value.get!(ExprResult[]), repr);}
 }
 class Function : ExprResult
 {
@@ -272,12 +282,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 	switch (tree.name.chompPrefix("DiceExpr."))
 	{
 		case "Comp":
-			auto prevOperand = tree.children[0].eval.reduced;
+			auto prevOperand = tree.children[0].eval(context).reduced;
 			auto result = cast(ExprResult) new Bool(true, prevOperand.repr);
 			foreach(c;tree.children[1..$])
 			{
 				// Python-style chained comparisons https://docs.python.org/3.8/reference/expressions.html#comparisons
-				auto secondOperand = c.children[0].eval.reduced;
+				auto secondOperand = c.children[0].eval(context).reduced;
 				
 				if (prevOperand.value.type != secondOperand.value.type)
 					throw new EvalException(
@@ -325,13 +335,13 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		
 		case "Term":
 			if (tree.children.length == 1)
-				return tree.children[0].eval;
-			auto base = tree.children[0].eval.reduced;
+				return tree.children[0].eval(context);
+			auto base = tree.children[0].eval(context).reduced;
 			if (!(  (base.isA!Num && !base.isA!List) || base.isA!StringList))
 				throw new Exception("Can't do arithmetic on "~base.repr);
 			foreach(c;tree.children[1..$])
 			{
-				auto cfactor = c.children[0].eval.reduced;
+				auto cfactor = c.children[0].eval(context).reduced;
 				if (!(  (base.isA!Num && !base.isA!List) || base.isA!StringList))
 					throw new Exception("Can't do arithmetic on "~cfactor.repr);
 				
@@ -367,12 +377,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		
 		case "Factor":
 			if (tree.children.length == 1)
-				return tree.children[0].eval;
-			auto base = tree.children[0].eval.reduced;
+				return tree.children[0].eval(context);
+			auto base = tree.children[0].eval(context).reduced;
 			mixin(TypeArithmeticRestriction!"base");
 			foreach(c;tree.children[1..$])
 			{
-				auto cfactor = c.children[0].eval.reduced;
+				auto cfactor = c.children[0].eval(context).reduced;
 				mixin(TypeArithmeticRestriction!"cfactor");
 				if (c.name == "DiceExpr.Mul")
 				{
@@ -401,7 +411,8 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "FunCall":
 			return callFunction(
 				tree.children[0].matches[0],
-				tree.children[1..$].map!(a=>a.eval).array,
+				tree.children[1..$].map!(a=>a.eval(context)).array,
+				context,
 				tree.name.chompPrefix("DiceExpr.")
 			);
 		
@@ -422,12 +433,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			if (tree.name == "DiceExpr.MulDie")
 			{
 				die = tree.children[1];
-				noOfDice = tree.children[0].eval.value.coerce!long;
+				noOfDice = tree.children[0].eval(context).value.coerce!long;
 			}
 			
 			if (die.name == "DiceExpr.Die")
 			{
-				auto sizeOfDice = die.children[0].eval.value.coerce!long;
+				auto sizeOfDice = die.children[0].eval(context).value.coerce!long;
 				// safeties at about 0.01% of long.max
 				// (this check is per dice roll, and long.max is for the entire result, so..)
 				if (noOfDice  > 9_999_999 || noOfDice<0)
@@ -461,13 +472,13 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			}
 			else if (die.name == "DiceExpr.CustomDie")
 			{
-				auto choices = die.children.map!(x=>x.eval.reduced.value.get!long);
+				auto choices = die.children.map!(x=>x.eval(context).reduced.value.get!long);
 				long[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
 				return cast(ExprResult) new NumList(dice, dice.to!string);
 			}
 			else if (die.name == "DiceExpr.PictDie")
 			{
-				auto choices = die.children.map!(x=>x.eval.reduced.value.get!string);
+				auto choices = die.children.map!(x=>x.eval(context).reduced.value.get!string);
 				string[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
 				return cast(ExprResult) new StringList(dice, "["~dice.join(",")~"]");
 			}
@@ -476,13 +487,13 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			
 		
 		case "Neg":
-			auto base = tree.children[0].eval.reduced;
+			auto base = tree.children[0].eval(context).reduced;
 			base.value = -base.value.get!long;
 			base.repr = "-"~base.repr;
 			return base;
 		
 		case "Not":
-			auto base = tree.children[0].eval.reduced;
+			auto base = tree.children[0].eval(context).reduced;
 			base.value = !base.value.get!bool;
 			base.repr = "!"~base.repr;
 			return base;
@@ -505,12 +516,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			return context[tree.matches[0]];
 		
 		case "DiceExpr":
-			return tree.children[0].eval.reduced;
+			return tree.children[0].eval(context).reduced;
 		case "FullExpr":
 		case "Expr":
 		case "Pos":
 		case "Primary":
-			return tree.children[0].eval;
+			return tree.children[0].eval(context);
 		
 		default:
 			throw new EvalException("Unknown case: "~tree.name);
@@ -518,7 +529,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 	
 }
 
-ExprResult callFunction(string name, ExprResult[] args, string callingStyle="FunCall")
+ExprResult callFunction(string name, ExprResult[] args, Context context, string callingStyle="FunCall")
 {
 	string repr;
 	if (callingStyle == "DotCall" && args.length>0)
@@ -530,7 +541,7 @@ ExprResult callFunction(string name, ExprResult[] args, string callingStyle="Fun
 	else
 		repr = name~"("~args.map!(a=>a.repr).join(", ")~")";
 	
-	auto best(alias predicate)(ExprResult[] args)
+	ExprResult best(alias predicate)(ExprResult[] args)
 	{
 		auto nbToTake=1L;
 		if (args.length>2)
@@ -552,21 +563,67 @@ ExprResult callFunction(string name, ExprResult[] args, string callingStyle="Fun
 			return args[0];
 	}
 	
-	/+
-	auto map(ExprResult[] args)
+	
+	ExprResult map(ExprResult[] args)
 	{
 		if (args.length!=2)
 			throw new EvalException("map takes exactly two arguments");
 		if (!args[0].isA!List || args[0].isA!Function)
 			throw new EvalException("map takes a list and a lambda");
+		auto lambda = cast(Function) args[1];
+		if (lambda.args.length != 1)
+			throw new EvalException("The lambda map takes must take exactly one argument (list item)");
 		
-		return args[0].map!(a=>
-			eval(
-				args[1]
-			)
-			);
+		
+		ExprResult[] results;
+		auto lambdaContext = new Context(context);
+		foreach(a;args[0].value.get!(ExprResult[]))
+		{
+			lambdaContext[lambda.args[0]] = a;
+			results ~= eval(lambda.code, lambdaContext);
+		}
+		
+		if (results.all!(it=>it.isA!Bool))
+			return cast(ExprResult) new BoolList(results);
+		if (results.all!(it=>it.isA!Num))
+			return cast(ExprResult) new NumList(results);
+		if (results.all!(it=>it.isA!String))
+			return cast(ExprResult) new StringList(results);
+		return cast(ExprResult) new MixedList(results);
 	}
-	+/
+	
+	ExprResult filter(ExprResult[] args)
+	{
+		if (args.length!=2)
+			throw new EvalException("filter takes exactly two arguments");
+		if (!args[0].isA!List || args[0].isA!Function)
+			throw new EvalException("filter takes a list and a lambda (that returns a bool)");
+		auto lambda = cast(Function) args[1];
+		if (lambda.args.length != 1)
+			throw new EvalException("The lambda filter takes must take exactly one argument (list item)");
+		
+		
+		ExprResult[] results;
+		auto lambdaContext = new Context(context);
+		foreach(a;args[0].value.get!(ExprResult[]))
+		{
+			lambdaContext[lambda.args[0]] = a;
+			ExprResult result = eval(lambda.code, lambdaContext);
+			if (!result.isA!Bool)
+				throw new EvalException("Lambda "~lambda.repr~" returned a "~typeid(result).to!string~" instead of a bool");
+			if (result.value.get!bool)
+				results~=a;
+		}
+		
+		if (results.all!(it=>it.isA!Bool))
+			return cast(ExprResult) new BoolList(results);
+		if (results.all!(it=>it.isA!Num))
+			return cast(ExprResult) new NumList(results);
+		if (results.all!(it=>it.isA!String))
+			return cast(ExprResult) new StringList(results);
+		return cast(ExprResult) new MixedList(results);
+	}
+	
 	
 	ExprResult res;
 	switch (name)
@@ -576,6 +633,12 @@ ExprResult callFunction(string name, ExprResult[] args, string callingStyle="Fun
 			break;
 		case "worst":
 			res = best!"a < b"(args);
+			break;
+		case "map":
+			res = map(args);
+			break;
+		case "filter":
+			res = filter(args);
 			break;
 		default:
 			throw new EvalException("Unknown function: "~name);
