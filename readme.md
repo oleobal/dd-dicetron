@@ -9,7 +9,19 @@ As it turns out, Dlang has, at the time of writing, no "solid" Discord libs.
 Didn't want to debug one myself so I thought I'd just stick a Python server
 in front of the D binary and ship it as a Docker container.
 
-`dd-dice` has the D program that does the parsing and interpreting.
+`dd-dice` has the D program that does the parsing and interpreting:
+
+```
+$ dd-dice '20 <= 2d20+5 <= 35'
+20<=[6+1]+5<=35: Failure
+
+$ dd-dice '4d20.best(3).worst(2)'
+[7+5+1+15].best(3).worst(2): 12
+
+$ dd-dice '[film, "board games"] + ["🍕", "🍔", "🥗"]'
+[board games]+[🍔]: board games, 🍔
+```
+
 
 `dicetron` has the Python bindings to the libs that do the heavy lifting of
 connecting to Discord

@@ -16,6 +16,21 @@ However I wrote the intepreter so here's a bit about how it works.
 
 _Where `x` and `y` are two non-negative integers._ (the grammar is supposed not to allow it)
 
+### Custom dice
+
+`[x,x,x,...]` generates a custom die
+
+Right now they are divided in two: numeric custom dice with only numeric literals,
+and "Picture dice" with string literals. Rolls of numeric dice are reducible through
+summing, rolls of picture die aren't.
+
+The division is somewhat arbitrary and limiting. It might be better to just 
+have a single "custom die" type that can take any expressions. However it would
+still need some mechanism do determine whether it is reducible or not.
+
+Also, picture die accept perl-style unquoted string to make them easier to type.
+Accepting any expression means putting unquoted strings in the full language.
+(ie some mechanism to distinguish idents and unquoted strings)
 
 ## Type system
 

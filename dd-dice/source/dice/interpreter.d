@@ -355,6 +355,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		
 		case "MulDie":
 		case "Die":
+		case "CustomDie":
 		case "PictDie":
 		case "Coin":
 			auto noOfDice = 1L;
@@ -398,6 +399,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 						throw new EvalException(`Can't flip coin `~die.matches[0]);
 				}
 				return cast(ExprResult) new BoolList(coins, "["~coins.map!(x=>x?"T":"F").join("+")~"]");
+			}
+			else if (die.name == "DiceExpr.CustomDie")
+			{
+				auto choices = die.children.map!(x=>x.eval.reduced.value.get!long);
+				long[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
+				return cast(ExprResult) new NumList(dice, dice.to!string);
 			}
 			else if (die.name == "DiceExpr.PictDie")
 			{
