@@ -33,15 +33,24 @@ abstract class ExprResult {
 	
 	abstract ExprResult reduced();
 	
-	override string toString()
+	override string toString() const // adding const causes problems I don't understand
 	{
+		
 		if (value.type == typeid(ExprResult[]))
 			return value.get!(ExprResult[]).map!(it=>it.to!string).join(",");
+		else if ( value.type == typeid(long))
+			return value.get!long.to!string;
+		else if ( value.type == typeid(bool))
+			return value.get!bool.to!string;
 		else
 			return value.to!string;
+			// doesn't work well with const
+			// because VariantN.coerce doesn't work on const objects
+		
+		
 	}
 	
-	override bool opEquals(const Object o)
+	override bool opEquals(const Object o) const
 	{
 		if (typeid(o) == typeid(this))
 		{
@@ -130,7 +139,7 @@ class Function : ExprResult
 	{
 		return cast(ExprResult) new Function(args, code, repr);
 	}
-	override bool opEquals(const Object o)
+	override bool opEquals(const Object o) const
 	{
 		if (typeid(o) == typeid(this))
 		{
@@ -140,9 +149,14 @@ class Function : ExprResult
 		else
 			return false;
 	}
-	override string toString()
+	override string toString() const
 	{
 		return repr;
+	}
+	override size_t toHash() const
+	{
+		// Counting on the repr being about equal to code.input[code.begin..code.end]
+		return typeid(repr).getHash(&repr);
 	}
 }
 
