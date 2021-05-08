@@ -12,15 +12,19 @@ in front of the D binary and ship it as a Docker container.
 `dd-dice` has the D program that does the parsing and interpreting:
 
 ```
-$ dd-dice '20 <= 2d20+5 <= 35'
+  $ dd-dice '20 <= 2d20+5 <= 35'
 20<=[6+1]+5<=35: Failure
 
-$ dd-dice '4d20.best(3).worst(2)'
+  $ dd-dice '4d20.best(3).worst(2)'
 [7+5+1+15].best(3).worst(2): 12
 
-$ dd-dice '[film, "board games"] + ["🍕", "🍔", "🥗"]'
+  $ dd-dice '4d20.filter(d=>d>10).map(it=>it+1d4)'
+[2+19+9+16].filter(d => d>10).map(it => it+1d4): 42
+
+  $ dd-dice '[film, "board games"] + ["🍕", "🍔", "🥗"]'
 [board games]+[🍔]: board games, 🍔
 ```
+(it attempts to tell you what your rolls were, but that can get complicated)
 
 
 `dicetron` has the Python bindings to the libs that do the heavy lifting of

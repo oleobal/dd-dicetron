@@ -26,7 +26,7 @@ DiceExpr:
 	Primary    < DotCall / FunCall / MulDie
 	             / Parens / Not / Neg / Pos
 	             / Die / CustomDie / PictDie / Coin
-	             / Number
+	             / Number / String
 	             / LambdaDef / Ident
 	Parens     < "(" Expr ")"
 	Not        < "!" Primary

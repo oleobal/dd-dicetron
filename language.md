@@ -59,6 +59,16 @@ We could conceivably have two types of lists of numbers, ones that are silently
 reducibles and ones that aren't. But I think it would be very obscure to the
 point of uselessness.
 
+#### Empty lists
+
+`filter` can create empty lists. No policy on them yet.
+
+Empty lists evaluate to 0, which I think is OK,
+although `[]` would be fine too or better.
+
+As I'm writing this I don't actually understand _why_ empty lists (including
+the StringList ones) evaluate to 0, but that's OK.
+
 ### Bools
 
 Bools are also the result of a comparison, or a coin flip.
@@ -97,6 +107,13 @@ special case of them. `5d2` or `3*4` are just infix calls to the `d` and `*`
 functions after all. I might do it later so all functions live in their own
 little world (OK, it's unlikely to happen).
 
+### Lambdas
+
+Lambdas (anonymous function definitions) are of the form `a => a+1`.
+
+There's no way to call them beyond passing them as argument to a function that
+takes one as imput, like `map` or `filter`. 
+
 ## Arithmetic division
 
 Division is currently implemented as `long/long` and therefore floors the result.
@@ -104,3 +121,32 @@ We'd need to sort that out somehow, because "divide, round up" is fairly common.
 
 I'm not too keen on floats, I'd rather there'd be two types of division and each
 returns an integer.
+
+## Repr
+
+The `ExprResult` class has a `repr` field which is supposedly to help the user
+understand what happened in the interpreter (specifically, what their rolls were).
+
+It immediatly gets derailed when a roll of dice gets used to parametrize another.
+
+For example:
+ - `2d20.map(d=>d+1d4)` giving `[10+6].map(d => d+1d4): 22`
+ - `(1d4)d20` giving `[7+10+11]: 28`
+
+In both cases we lose the immediate result of dice.
+I'm not sure what the ideal display would be in these cases. I'm thinking of
+splitting it into multiple lines:
+ - `2d20.map(d=>d+1d4)`
+   ```
+   [10+6].map(d => d+1d4)
+    -> 10+[4]
+    -> 6+[2]
+   ```
+ - `(1d4)d20`
+   ```
+   [3]d20
+    -> [7+10+11]
+   28
+   ```
+
+No idea how I'd achieve like that precisely. Must think about it more.

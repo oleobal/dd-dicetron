@@ -42,6 +42,8 @@ abstract class ExprResult {
 			return value.get!long.to!string;
 		else if ( value.type == typeid(bool))
 			return value.get!bool.to!string;
+		else if ( value.type == typeid(string))
+			return value.get!string;
 		else
 			return value.to!string;
 			// doesn't work well with const
@@ -433,7 +435,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			if (tree.name == "DiceExpr.MulDie")
 			{
 				die = tree.children[1];
-				noOfDice = tree.children[0].eval(context).value.coerce!long;
+				noOfDice = tree.children[0].eval(context).reduced.value.coerce!long;
 			}
 			
 			if (die.name == "DiceExpr.Die")
