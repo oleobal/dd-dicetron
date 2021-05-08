@@ -68,10 +68,8 @@ int main(string[] args)
 		string prettyResult;
 		if (result.value.type == typeid(bool))
 			prettyResult=result.value.get!bool?"Success":"Failure";
-		else if (result.value.type == typeid(string[]))
-			prettyResult=result.value.get!(string[]).join(", ");
 		else
-			prettyResult=result.value.coerce!string;
+			prettyResult=result.toString;
 		
 		if (machineReadable)
 			writeln(result.repr~"\n"~prettyResult~"\n");
