@@ -9,6 +9,7 @@ import json
 
 history_command_regex = re.compile(r"!(!|[0-9]+)")
 
+
 def get_data_dir():
     path = os.environ.get("DD_DATA_DIR", "")
     if not path:
@@ -18,8 +19,8 @@ def get_data_dir():
     return path
 
 
-
 history = {}
+
 
 def add_history_item(ident, item):
     if ident not in history:
@@ -76,23 +77,24 @@ def load_prefixes():
             with open(p) as f:
                 try:
                     t = json.load(f)
-                    prefixes[int(name[:-len(".json")], base=16)] = t["prefix"]
+                    prefixes[int(name[: -len(".json")], base=16)] = t["prefix"]
                 except JSONDecodeError as e:
                     print(f"Error decoding {p}: {e}")
                     pass
     return prefixes
 
-def save_prefixes(prefixes:dict, only=None):
+
+def save_prefixes(prefixes: dict, only=None):
     path = os.path.join(get_data_dir(), "servers")
     if not os.path.isdir(path):
         os.makedirs(path, exist_ok=True)
     if only and only in prefixes:
-        with open(os.path.join(path, ("%x" % only)+".json"), "w") as f:
-            json.dump({"prefix":prefixes[only]}, f)
+        with open(os.path.join(path, ("%x" % only) + ".json"), "w") as f:
+            json.dump({"prefix": prefixes[only]}, f)
     else:
         for k, v in prefixes:
-            with open(os.path.join(path, ("%x"%k)+".json"), "w") as f:
-                json.dump({"prefix":v}, f)
+            with open(os.path.join(path, ("%x" % k) + ".json"), "w") as f:
+                json.dump({"prefix": v}, f)
 
 
 def get_dice_help():
@@ -118,23 +120,27 @@ def roll_dice(expr) -> tuple[bool, str]:
         return (False, "Error")
 
 
-
 def decide_answer_message(message, global_prefix: str, prefixes: dict):
-    command = ""
-    if message.content.startswith(global_prefix):
-        command = message.content[len(global_prefix)+1:]
-    elif (message.guild
-        and message.guild.id in prefixes
-        and message.content.startswith(prefixes[message.guild.id])):
-       command = message.content[len(prefixes[message.guild.id])+1:]
+    contents = message.content.split(maxsplit=1)
+    first_word = contents[0]
+    if len(contents) == 1:
+        command = ""
     else:
-        return False
-    
-    command = command.strip()
-    if command == "":
-        return "help"
-    
-    return command
+        command = contents[1].strip()
+        if command[:3] == command[-3:] == "```":
+            command = command[3:-3]
+        elif command[0] == command[-1] == "`":
+            command = command[1:-1]
+
+    if first_word == global_prefix or (
+        message.guild
+        and message.guild.id in prefixes
+        and first_word == prefixes[message.guild.id]
+    ):
+        if command == "":
+            return "help"
+        return command
+    return False
 
 
 def usage_help(guild_id=None) -> str:
@@ -158,12 +164,15 @@ def usage_help(guild_id=None) -> str:
         )
     )
 
+
 def set_guild_prefix(guild: int, prefix: str):
     prefixes[guild] = prefix
     save_prefixes(prefixes, only=guild)
 
 
-client = discord.Client(activity=discord.Activity(name=global_prefix, type=discord.ActivityType.listening))
+client = discord.Client(
+    activity=discord.Activity(name=global_prefix, type=discord.ActivityType.listening)
+)
 
 
 @client.event
@@ -192,9 +201,13 @@ async def on_message(message):
             if len(words) == 1:
                 prefix = prefixes.get(message.guild.id, global_prefix)
                 if message.guild.id in prefixes:
-                    await message.reply(f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`")
+                    await message.reply(
+                        f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`"
+                    )
                 else:
-                    await message.reply(f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`")
+                    await message.reply(
+                        f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`"
+                    )
                 return
             set_guild_prefix(message.guild.id, words[1])
             await message.reply(f"Prefix updated to `{words[1]}`")
@@ -237,17 +250,14 @@ async def on_message(message):
         await message.reply(response)
 
 
-
-
 def main():
     assert "DD_DISCORD_API_TOKEN" in os.environ
     assert "DD_DICE_PATH" in os.environ
 
     global prefixes
     prefixes = load_prefixes()
-    
+
     client.run(os.environ["DD_DISCORD_API_TOKEN"])
-    
 
 
 if __name__ == "__main__":
