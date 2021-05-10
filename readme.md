@@ -92,11 +92,14 @@ a folder there.
 
 Example docker-compose configuration:
 ```
+services:
   dd-dicetron:
     image: "oleobal/dd-dicetron"
     environment:
       - 'DD_DISCORD_API_TOKEN=<your token>'
       - 'DD_DATA_DIR=/dd-data'
     volumes:
-      - '/dd-data'
+      - 'dd-data:/dd-data'
+volumes:
+  dd-data: {}
 ```
