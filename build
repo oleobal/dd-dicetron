@@ -1,3 +1,10 @@
 #!/usr/bin/env sh
 
 DOCKER_BUILDKIT=1 docker build . -t dd-dicetron
+
+if [ "$1" == "push" ]; then
+	docker tag dd-dicetron oleobal/dd-dicetron:$(git rev-parse --short=7 HEAD)
+	docker push            oleobal/dd-dicetron:$(git rev-parse --short=7 HEAD)
+	docker tag dd-dicetron oleobal/dd-dicetron:latest
+	docker push            oleobal/dd-dicetron:latest
+fi

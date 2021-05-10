@@ -30,8 +30,11 @@ COPY dicetron/requirements.txt /
 RUN python3 -m pip install -r /requirements.txt
 
 
+RUN mkdir /dd-data && chown nobody /dd-data
 USER nobody
 ENV DD_DICE_PATH="/dd-dice"
+ENV DD_DATA_DIR="/dd-data"
 #ENV DD_DISCORD_API_TOKEN
+
 
 ENTRYPOINT ["/dicetron"]

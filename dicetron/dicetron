@@ -197,7 +197,7 @@ async def on_message(message):
                     await message.reply(f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`")
                 return
             set_guild_prefix(message.guild.id, words[1])
-            await message.reply("Prefix updated to "+words[1])
+            await message.reply(f"Prefix updated to `{words[1]}`")
             return
         elif command.strip().casefold() == "history":
             h = get_pretty_history(author_id)
