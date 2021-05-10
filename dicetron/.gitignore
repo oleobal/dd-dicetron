@@ -1,3 +1,4 @@
 bot-env/*
+.dd-data/*
 __pycache__/
 *.pyc

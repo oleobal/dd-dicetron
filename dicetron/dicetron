@@ -5,12 +5,21 @@ import subprocess
 from collections import deque
 from struct import pack
 import re
+import json
 
 history_command_regex = re.compile(r"!(!|[0-9]+)")
 
+def get_data_dir():
+    path = os.environ.get("DD_DATA_DIR", "")
+    if not path:
+        path = os.path.join(os.path.dirname(__file__), ".dd-data")
+    if not os.path.isdir(path):
+        os.makedirs(path, exist_ok=True)
+    return path
+
+
 
 history = {}
-
 
 def add_history_item(ident, item):
     if ident not in history:
@@ -51,9 +60,110 @@ def trim_indent(s: str) -> str:
     return "\n".join(source)
 
 
-client = discord.Client()
+prefixes = {}
+global_prefix = "!dddt"
 
-trigger = "!r"
+
+def load_prefixes():
+    path = os.path.join(get_data_dir(), "servers")
+    if not os.path.isdir(path):
+        return {}
+    prefixes = {}
+    _, _, files = next(os.walk(path))
+    for name in files:
+        if name.endswith((".json")):
+            p = os.path.join(path, name)
+            with open(p) as f:
+                try:
+                    t = json.load(f)
+                    prefixes[int(name[:-len(".json")], base=16)] = t["prefix"]
+                except JSONDecodeError as e:
+                    print(f"Error decoding {p}: {e}")
+                    pass
+    return prefixes
+
+def save_prefixes(prefixes:dict, only=None):
+    path = os.path.join(get_data_dir(), "servers")
+    if not os.path.isdir(path):
+        os.makedirs(path, exist_ok=True)
+    if only and only in prefixes:
+        with open(os.path.join(path, ("%x" % only)+".json"), "w") as f:
+            json.dump({"prefix":prefixes[only]}, f)
+    else:
+        for k, v in prefixes:
+            with open(os.path.join(path, ("%x"%k)+".json"), "w") as f:
+                json.dump({"prefix":v}, f)
+
+
+def get_dice_help():
+    p = subprocess.run([os.environ["DD_DICE_PATH"], "--help"], capture_output=True)
+    if p.returncode == 0:
+        return p.stdout.decode("utf-8")
+    else:
+        return "Error"
+
+
+def roll_dice(expr) -> tuple[bool, str]:
+    p = subprocess.run(
+        [os.environ["DD_DICE_PATH"], "--machine", expr], capture_output=True
+    )
+    if p.returncode == 0:
+        lines = p.stdout.decode("utf-8").split("\n")
+        if len(lines[0]) > 100:
+            lines[0] = "[too long]"
+        if len(lines[2]) > 0:  # error
+            return (False, lines[2])
+        return (True, "`" + lines[0] + "`: **" + lines[1] + "**")
+    else:
+        return (False, "Error")
+
+
+
+def decide_answer_message(message, global_prefix: str, prefixes: dict):
+    command = ""
+    if message.content.startswith(global_prefix):
+        command = message.content[len(global_prefix)+1:]
+    elif (message.guild
+        and message.guild.id in prefixes
+        and message.content.startswith(prefixes[message.guild.id])):
+       command = message.content[len(prefixes[message.guild.id])+1:]
+    else:
+        return False
+    
+    command = command.strip()
+    if command == "":
+        return "help"
+    
+    return command
+
+
+def usage_help(guild_id=None) -> str:
+    prefix = prefixes.get(guild_id, global_prefix)
+    return (
+        trim_indent(
+            f"""
+            Prefix all commands with `{prefix}` (eg `{prefix} 1d20`)
+            ```
+            """
+        )
+        + get_dice_help()
+        + trim_indent(
+            """
+            
+            Comments:                         2d4+1 # Great axe damage
+            List last rolls:                  history
+            Change prefix:                    prefix
+            ``` _Source: `https://github.com/oleobal/dd-dicetron`_
+            """
+        )
+    )
+
+def set_guild_prefix(guild: int, prefix: str):
+    prefixes[guild] = prefix
+    save_prefixes(prefixes, only=guild)
+
+
+client = discord.Client(activity=discord.Activity(name=global_prefix, type=discord.ActivityType.listening))
 
 
 @client.event
@@ -66,35 +176,28 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith(trigger):
-        command = message.content[len(trigger) :]
+    if command := decide_answer_message(message, global_prefix, prefixes):
         cmd_from_history = None
         author_id = b"%x%x" % (
             message.author.id,
             message.channel.id,
         )  # not optimal but close enough
         if command.strip().casefold() == "help":
-            await message.reply(
-                trim_indent(
-                    f"""
-                    Prefix all commands with `{trigger}` (eg `{trigger} 1d20`)
-                    ```
-                    """
-                )
-                + get_dice_help()
-                + trim_indent(
-                    """
-                    
-                    Comments:                         2d4+1 # Great axe damage
-                    
-                    List last rolls:                  history
-                    reroll the last one:            !!
-                    reroll the one with index 7:    !7
-                    ```
-                    Source: `https://github.com/oleobal/dd-dicetron`
-                    """
-                )
-            )
+            await message.reply(usage_help(message.guild.id if message.guild else None))
+            return
+        elif command.strip().casefold().startswith("prefix"):
+            if not message.guild:
+                return
+            words = command.strip().casefold().split()
+            if len(words) == 1:
+                prefix = prefixes.get(message.guild.id, global_prefix)
+                if message.guild.id in prefixes:
+                    await message.reply(f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`")
+                else:
+                    await message.reply(f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`")
+                return
+            set_guild_prefix(message.guild.id, words[1])
+            await message.reply("Prefix updated to "+words[1])
             return
         elif command.strip().casefold() == "history":
             h = get_pretty_history(author_id)
@@ -134,34 +237,17 @@ async def on_message(message):
         await message.reply(response)
 
 
-def get_dice_help():
-    p = subprocess.run([os.environ["DD_DICE_PATH"], "--help"], capture_output=True)
-    if p.returncode == 0:
-        return p.stdout.decode("utf-8")
-    else:
-        return "Error"
-
-
-def roll_dice(expr) -> tuple[bool, str]:
-    p = subprocess.run(
-        [os.environ["DD_DICE_PATH"], "--machine", expr], capture_output=True
-    )
-    if p.returncode == 0:
-        lines = p.stdout.decode("utf-8").split("\n")
-        if len(lines[0]) > 100:
-            lines[0] = "[too long]"
-        if len(lines[2]) > 0:  # error
-            return (False, lines[2])
-        return (True, "`" + lines[0] + "`: **" + lines[1] + "**")
-    else:
-        return (False, "Error")
 
 
 def main():
     assert "DD_DISCORD_API_TOKEN" in os.environ
     assert "DD_DICE_PATH" in os.environ
 
+    global prefixes
+    prefixes = load_prefixes()
+    
     client.run(os.environ["DD_DISCORD_API_TOKEN"])
+    
 
 
 if __name__ == "__main__":
