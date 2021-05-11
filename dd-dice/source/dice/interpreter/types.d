@@ -87,10 +87,18 @@ class Num : ExprResult
 }
 class NumList : Num, List
 {
+	/++
+	 + the maximum possible value of the corresponding roll
+	 + used for explosions
+	 +/
+	long maxValue;
+	
 	this() {}
 	this (long[] a) { this(a, genRepr(a)); }
+	this (long[] a, long max) { maxValue = max; this(a); }
 	this (long[] a, string b) { value = a.map!(it=>cast(ExprResult) new Num(it)).array; repr = b; }
 	this (ExprResult[] a) { this(a, genRepr(a)); }
+	this (ExprResult[] a, long max) { maxValue = max; this(a, genRepr(a)); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Num)) ; value = a; repr = b; }
 	
 	string genRepr(T)(T a)
@@ -198,12 +206,16 @@ class Function : ExprResult
 }
 
 
-ExprResult autoBuildList(ExprResult[] elements)
+ExprResult autoBuildList(ExprResult[] elements, long maxValue=0)
 {
 	if (elements.all!(it=>it.isA!Bool))
 		return cast(ExprResult) new BoolList(elements);
 	if (elements.all!(it=>it.isA!Num))
+	{
+		if (maxValue)
+			return cast(ExprResult) new NumList(elements, maxValue);
 		return cast(ExprResult) new NumList(elements);
+	}
 	if (elements.all!(it=>it.isA!String))
 		return cast(ExprResult) new StringList(elements);
 	return cast(ExprResult) new MixedList(elements);

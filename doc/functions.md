@@ -20,6 +20,20 @@ Return the `nbToTake` best or worst elements of the list.
 As a side of effect of implementation, the output is sorted, but there is no
 guarantee of that.
 
+#### explode
+
+`NumList explode(NumList)`
+
+`BoolList explode(BoolList)`
+
+Roll an additional die for every die in the input list with the maximum possible
+value, and do the same for those new dice too.
+
+On `NumList`, this function requires a property called `maxValue` to be set,
+which indicates what is the maximum possible size of an element. This property
+is set by the dice rolling functions, but is stripped by arithmetic and many
+other functions.
+
 
 ### List manipulation
 

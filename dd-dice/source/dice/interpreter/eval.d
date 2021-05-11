@@ -211,7 +211,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					return cast(ExprResult) new Num(0, "[0]");
 				
 				auto dice = rollDice(noOfDice, sizeOfDice);
-				return cast(ExprResult) new NumList(dice, "["~dice.map!(x=>x.to!string).join("+")~"]");
+				return cast(ExprResult) new NumList(dice, sizeOfDice);
 			}
 			else if (die.name == "DiceExpr.Coin")
 			{
