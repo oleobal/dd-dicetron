@@ -26,14 +26,17 @@ times the dice is rolled.
 
 ## Type system
 
-There are currently seven types:
- - integers (as `long`)
- - booleans (`true` and `false` in the code, but `Success` and `Failure` in the output)
- - strings
- - list of integers
- - list of bools
- - list of strings
- - "mixed" lists
+There are currently:
+ - `ExprResult`, the root of the type hierarchy (abstract, can't exist)
+ - `Num`, integers (as `long`)
+ - `Bool`, booleans (`true` and `false` in the code, but `Success` and `Failure` in the output)
+ - `String`
+ - and corresponding lists:
+   - `MixedList` which don't provide any guarantee as to what they contain
+   - `NumList`
+   - `BoolList`
+   - `StringList`
+   - `List` is used to mean "any of these" (abstract, can't exist)
 
 ### Lists & ints
 
@@ -129,6 +132,9 @@ Then you can replace `2d20.map(x=>x+1)` with `2d20.map{it+1}`.
 Return the `nbToTake` best or worst elements of the list.
 `nbToTake` is optional and defaults to 1.
 
+As a side of effect of implementation, the output is sorted, but there is no
+guarantee of that.
+
 #### min/max
 
 `Num max(Num, Num,...)`
@@ -153,6 +159,19 @@ Return the list with the function applied to each element
 Return the list, but with only elements for which the function returns `true`.
 This can return an empty list.
 
+#### get
+
+`ExprResult get(List, Num index)`
+
+Get the element at the given index (0-indexed). If the index is negative, count
+from the end of the list.
+
+#### sort/rsort
+
+`List sort(List)`
+
+Return a the list sorted, smallest element first in the case of `sort` and the
+reverse for `rsort`.
 
 ## Arithmetic division
 

@@ -39,9 +39,9 @@ DiceExpr:
 	Number     <- ~([0-9]+)
 	
 	DotCall    < Primary "." Ident (
-	                                "{" LambdaDef "}"
-	                                / ( "(" ( Expr ("," Expr )* :(",")? )? ")" )?
-	                                )
+	                "{" LambdaDef "}"
+	                / ( "(" ( Expr ("," Expr )* :(",")? )? ")" )?
+	            )
 	FunCall    < Ident "(" ( Expr ("," Expr )* :(",")? )? ")"
 	LambdaDef  < ( Ident ("," Ident )* :(",")? "=>" )? Expr
 	

@@ -1,6 +1,7 @@
 /// Defines all types the interpreter manages, descending from ExprResult
 module dice.interpreter.types;
 
+import std.traits;
 import std.string;
 import std.variant;
 import std.algorithm;
@@ -87,9 +88,17 @@ class Num : ExprResult
 class NumList : Num, List
 {
 	this() {}
+	this (long[] a) { this(a, genRepr(a)); }
 	this (long[] a, string b) { value = a.map!(it=>cast(ExprResult) new Num(it)).array; repr = b; }
-	this (ExprResult[] a) { this(a, "["~a.map!(it=>it.to!string).join("+")~"]"); }
+	this (ExprResult[] a) { this(a, genRepr(a)); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Num)) ; value = a; repr = b; }
+	
+	string genRepr(T)(T a)
+	{
+		static assert(isArray!T);
+		return "["~a.map!(it=>it.to!string).join("+")~"]";
+	}
+	
 	override ExprResult reduced() {
 		return cast(ExprResult) new Num(value.get!(ExprResult[]).map!(it=>it.value.get!long).sum, repr);
 	}
@@ -104,10 +113,16 @@ class Bool : Num
 class BoolList : Bool, List
 {
 	this() {}
+	this (bool[] a) { this(a, genRepr(a)); }
 	this (bool[] a, string b) { value = a.map!(it=>cast(ExprResult) new Bool(it)).array; repr = b; }
-	this (ExprResult[] a) { this(a, "["~a.map!(it=>it.to!string).join("+")~"]"); }
+	this (ExprResult[] a) { this(a, genRepr(a)); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Bool)) ; value = a; repr = b; }
 	
+	string genRepr(T)(T a)
+	{
+		static assert(isArray!T);
+		return "["~a.map!(it=>it.to!string).join("+")~"]";
+	}
 	
 	override ExprResult reduced() {
 		auto l = value.get!(ExprResult[]);
