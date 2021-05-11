@@ -114,6 +114,42 @@ Lambdas (anonymous function definitions) are of the form `a => a+1`.
 There's no way to call them beyond passing them as argument to a function that
 takes one as imput, like `map` or `filter`. 
 
+### Supplied functions
+
+#### best/worst
+
+`NumList best(NumList, Num nbToTake=1)`
+
+`NumList worst(NumList, Num nbToTake=1)`
+
+Return the `nbToTake` best or worst elements of the list.
+`nbToTake` is optional and defaults to 1.
+
+#### min/max
+
+`Num max(Num, Num,...)`
+
+`Num min(Num, Num,...)`
+
+Return the highest or lowest element of those supplied.
+
+If you want the highest or lowest element **of a list** (eg the result of a
+dice roll) use `best` or `worst`.
+
+#### map
+
+`List map(Function, List)`
+
+Return the list with the function applied to each element
+
+#### filter
+
+`List filter(Function, List)`
+
+Return the list, but with only elements for which the function returns `true`.
+This can return an empty list.
+
+
 ## Arithmetic division
 
 Division is currently implemented as `long/long` and therefore floors the result.

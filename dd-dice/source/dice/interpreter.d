@@ -543,7 +543,7 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 	else
 		repr = name~"("~args.map!(a=>a.repr).join(", ")~")";
 	
-	ExprResult best(alias predicate)(ExprResult[] args)
+	ExprResult fBest(alias predicate)(ExprResult[] args)
 	{
 		auto nbToTake=1L;
 		if (args.length>2)
@@ -565,8 +565,19 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 			return args[0];
 	}
 	
+	ExprResult fMax(alias predicate)(ExprResult[] args)
+	{
+		auto nbToTake=1L;
+		if (args.length<2)
+			throw new EvalException("min & max need at least two args");
+		if (!args.all!(it=>it.isA!Num))
+			throw new EvalException("min & max only handle numeric types");
+		
+		return args.sort!(predicate)[0];
+	}
 	
-	ExprResult map(ExprResult[] args)
+	
+	ExprResult fMap(ExprResult[] args)
 	{
 		if (args.length!=2)
 			throw new EvalException("map takes exactly two arguments");
@@ -594,7 +605,7 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 		return cast(ExprResult) new MixedList(results);
 	}
 	
-	ExprResult filter(ExprResult[] args)
+	ExprResult fFilter(ExprResult[] args)
 	{
 		if (args.length!=2)
 			throw new EvalException("filter takes exactly two arguments");
@@ -631,16 +642,22 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 	switch (name)
 	{
 		case "best":
-			res = best!"a > b"(args);
+			res = fBest!"a > b"(args);
 			break;
 		case "worst":
-			res = best!"a < b"(args);
+			res = fBest!"a < b"(args);
+			break;
+		case "max":
+			res = fMax!"a.reduced.value.get!long > b.reduced.value.get!long"(args);
+			break;
+		case "min":
+			res = fMax!"a.reduced.value.get!long < b.reduced.value.get!long"(args);
 			break;
 		case "map":
-			res = map(args);
+			res = fMap(args);
 			break;
 		case "filter":
-			res = filter(args);
+			res = fFilter(args);
 			break;
 		default:
 			throw new EvalException("Unknown function: "~name);
