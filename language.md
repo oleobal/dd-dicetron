@@ -112,7 +112,15 @@ little world (OK, it's unlikely to happen).
 Lambdas (anonymous function definitions) are of the form `a => a+1`.
 
 There's no way to call them beyond passing them as argument to a function that
-takes one as imput, like `map` or `filter`. 
+takes one as input, like `map` or `filter`. 
+
+There is a special syntax if:
+ - You're using the Dot call form (`x.f` and not `f(x)`)
+ - There are only two arguments, the list and the lambda
+
+Then you can replace `2d20.map(x=>x+1)` with `2d20.map{it+1}`.
+(`it` is the default argument name)
+
 
 ### Supplied functions
 

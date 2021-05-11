@@ -179,7 +179,9 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		
 		
 		case "LambdaDef":
-			auto args = tree.children[0..$-1].map!(a=>a.matches[0]).array;
+			auto args = ["it"];
+			if (tree.children.length > 1)
+				args = tree.children[0..$-1].map!(a=>a.matches[0]).array;
 			auto repr = args.join(",")~" => "~tree.children[$-1].matches.join();
 			return cast(ExprResult) new Function(args, tree.children[$-1], repr);
 		

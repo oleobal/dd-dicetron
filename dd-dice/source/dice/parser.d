@@ -39,10 +39,12 @@ DiceExpr:
 	Coin       <- ( "coin"i / "true"i / "false"i ) :"s"?
 	Number     <- ~([0-9]+)
 	
-	DotCall    < Primary "." Ident ( "(" ( Expr ("," Expr )* :(",")? )? ")" )?
+	DotCall    < Primary "." Ident (
+	                                "{" LambdaDef "}"
+	                                / ( "(" ( Expr ("," Expr )* :(",")? )? ")" )?
+	                                )
 	FunCall    < Ident "(" ( Expr ("," Expr )* :(",")? )? ")"
-	LambdaDef  < Ident ("," Ident )* :(",")? "=>" Expr
-	
+	LambdaDef  < ( Ident ("," Ident )* :(",")? "=>" )? Expr
 	
 	Ident      < identifier
 	UnqStr     <~ String / [a-zA-Z0-9]+
