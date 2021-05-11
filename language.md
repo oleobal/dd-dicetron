@@ -20,27 +20,20 @@ _Where `x` and `y` are two non-negative integers._ (the grammar is supposed not 
 
 `[x,x,x,...]` generates a custom die
 
-Right now they are divided in two: numeric custom dice with only numeric literals,
-and "Picture dice" with string literals. Rolls of numeric dice are reducible through
-summing, rolls of picture die aren't.
+It is a list of any expressions, each only evaluated once regardless of how many
+times the dice is rolled.
 
-The division is somewhat arbitrary and limiting. It might be better to just 
-have a single "custom die" type that can take any expressions. However it would
-still need some mechanism do determine whether it is reducible or not.
-
-Also, picture die accept perl-style unquoted string to make them easier to type.
-Accepting any expression means putting unquoted strings in the full language.
-(ie some mechanism to distinguish idents and unquoted strings)
 
 ## Type system
 
-There are currently six types:
+There are currently seven types:
  - integers (as `long`)
  - booleans (`true` and `false` in the code, but `Success` and `Failure` in the output)
  - strings
  - list of integers
  - list of bools
  - list of strings
+ - "mixed" lists
 
 ### Lists & ints
 
@@ -89,7 +82,10 @@ lists of dice however does, and we can use the `+` operator.
 Question however: should lists of number dice be reduced beforehand? Right now,
 they are.
 
+#### Unquoted strings
 
+Identifiers with no match in context are treated as strings. 
+Dangerous but convenient for custom dice.
 
 ## Functions
 

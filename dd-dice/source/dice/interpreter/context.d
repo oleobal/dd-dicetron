@@ -2,6 +2,7 @@
 module dice.interpreter.context;
 
 import std.conv;
+import core.exception:RangeError;
 
 import dice.interpreter.types;
 
@@ -26,13 +27,30 @@ class Context
 			if (outer)
 				return outer[i];
 			else
-				throw new Exception("Undefined: "~i.to!string);
+				throw new RangeError("Undefined: "~i.to!string);
 		}
 	}
 	
 	ExprResult opIndexAssign(ExprResult val, string key)
 	{
 		return contents[key] = val;
+	}
+	
+	auto opBinaryRight(string op)(string lhs)
+	{
+		static if (op == "in")
+		{
+			if (lhs in contents)
+				return (lhs in contents);
+			else
+			{
+				if (outer)
+					return lhs in outer;
+				else
+					return null;
+			}
+		}
+		else static assert(0, "Operator "~op~" not implemented");
 	}
 	
 	/++
@@ -47,7 +65,7 @@ class Context
 			if (outer)
 				return outer.overwrite(key, val);
 			else
-				throw new Exception("Undefined: "~key.to!string);
+				throw new RangeError("Undefined: "~key.to!string);
 		}
 	}
 	

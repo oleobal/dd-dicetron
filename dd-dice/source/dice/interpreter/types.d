@@ -24,6 +24,15 @@ bool isExactlyA(T)(const Object o)
 	return (typeid(o) == typeid(T));
 }
 
+string typename(T)(T v)
+{
+	return typeid(v).to!string.split(".")[$-1];
+}
+
+string debuginfo(T)(T v)
+{
+	return v.typename~"("~v.to!string~")";
+}
 
 
 abstract class ExprResult {

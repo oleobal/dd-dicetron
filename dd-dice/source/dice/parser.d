@@ -25,17 +25,16 @@ DiceExpr:
 	Div        < "/" Primary
 	Primary    < DotCall / FunCall / MulDie
 	             / Parens / Not / Neg / Pos
-	             / Die / CustomDie / PictDie / Coin
+	             / Die / CustomDie / Coin
 	             / Number / String
 	             / LambdaDef / Ident
 	Parens     < "(" Expr ")"
 	Not        < "!" Primary
 	Neg        < "-" Primary
 	Pos        < "+" Primary
-	MulDie     < Primary (Die / CustomDie / PictDie / Coin)
+	MulDie     < Primary (Die / CustomDie / Coin)
 	Die        < "d"i Number
-	CustomDie  < "[" Number ("," Number )* :(",")? "]"
-	PictDie    < "[" UnqStr ("," UnqStr )* :(",")? "]"
+	CustomDie  < "[" Expr ("," Expr )* :(",")? "]"
 	Coin       <- ( "coin"i / "true"i / "false"i ) :"s"?
 	Number     <- ~([0-9]+)
 	
@@ -47,7 +46,6 @@ DiceExpr:
 	LambdaDef  < ( Ident ("," Ident )* :(",")? "=>" )? Expr
 	
 	Ident      < identifier
-	UnqStr     <~ String / [a-zA-Z0-9]+
 	String     <~ :doublequote (!doublequote DQChar)* :doublequote / :quote (!quote SQChar)* :quote
 	DQChar     <~ :backslash (doublequote / backslash) / .
 	SQChar     <~ :backslash (quote / backslash) / .

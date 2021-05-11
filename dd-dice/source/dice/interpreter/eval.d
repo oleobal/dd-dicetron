@@ -53,8 +53,8 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				if (prevOperand.value.type != secondOperand.value.type)
 					throw new EvalException(
 						"Can't compare values of type "
-						~prevOperand.value.type.to!string
-						~" and "~secondOperand.value.type.to!string
+						~prevOperand.debuginfo
+						~" and "~secondOperand.debuginfo
 					);
 				bool thisOpResult;
 				if (c.name == "DiceExpr.Eq")
@@ -66,7 +66,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				{
 					if (prevOperand.value.type != typeid(long))
 						throw new EvalException(
-							"Can't do other comparisons than equality on "~prevOperand.value.type.to!string
+							"Can't do other comparisons than equality on "~prevOperand.debuginfo
 						);
 					switch (c.name.chompPrefix("DiceExpr."))
 					{
@@ -189,7 +189,6 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "MulDie":
 		case "Die":
 		case "CustomDie":
-		case "PictDie":
 		case "Coin":
 			auto noOfDice = 1L;
 			auto die=tree;
@@ -235,15 +234,15 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			}
 			else if (die.name == "DiceExpr.CustomDie")
 			{
-				auto choices = die.children.map!(x=>x.eval(context).reduced.value.get!long);
-				long[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
-				return cast(ExprResult) new NumList(dice, dice.to!string);
-			}
-			else if (die.name == "DiceExpr.PictDie")
-			{
-				auto choices = die.children.map!(x=>x.eval(context).reduced.value.get!string);
-				string[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
-				return cast(ExprResult) new StringList(dice, "["~dice.join(",")~"]");
+				auto choices = die.children.map!(x=>x.eval(context).reduced);
+				ExprResult[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
+				if (dice.all!(it=>it.isA!Bool))
+					return cast(ExprResult) new BoolList(dice, dice.to!string);
+				if (dice.all!(it=>it.isA!Num))
+					return cast(ExprResult) new NumList(dice, dice.to!string);
+				if (dice.all!(it=>it.isA!String))
+					return cast(ExprResult) new StringList(dice, dice.to!string);
+				return cast(ExprResult) new MixedList(dice, dice.to!string);
 			}
 			else
 				throw new Exception("Unknown dice type: "~die.name);
@@ -276,7 +275,9 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			return cast(ExprResult) new String(tree.matches[0], '"'~tree.matches[0]~'"');
 		
 		case "Ident":
-			return context[tree.matches[0]];
+			if (tree.matches[0] in context)
+				return context[tree.matches[0]];
+			return new String(tree.matches[0]); // unquoted strings
 		
 		case "DiceExpr":
 			return tree.children[0].eval(context).reduced;
