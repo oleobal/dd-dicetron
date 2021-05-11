@@ -159,7 +159,7 @@ def usage_help(guild_id=None) -> str:
             Comments:                         2d4+1 # Great axe damage
             List last rolls:                  history
             Change prefix:                    prefix
-            ``` _Source: `https://github.com/oleobal/dd-dicetron`_
+            ``` _Source & doc at https://github.com/oleobal/dd-dicetron_
             """
         )
     )
@@ -179,6 +179,8 @@ client = discord.Client(
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
 
+def reply(message, content):
+    return message.channel.send(content, reference=message, mention_author=False)
 
 @client.event
 async def on_message(message):
@@ -192,7 +194,7 @@ async def on_message(message):
             message.channel.id,
         )  # not optimal but close enough
         if command.strip().casefold() == "help":
-            await message.reply(usage_help(message.guild.id if message.guild else None))
+            await reply(message, usage_help(message.guild.id if message.guild else None))
             return
         elif command.strip().casefold().startswith("prefix"):
             if not message.guild:
@@ -201,16 +203,16 @@ async def on_message(message):
             if len(words) == 1:
                 prefix = prefixes.get(message.guild.id, global_prefix)
                 if message.guild.id in prefixes:
-                    await message.reply(
+                    await reply(message,
                         f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`"
                     )
                 else:
-                    await message.reply(
+                    await reply(message,
                         f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`"
                     )
                 return
             set_guild_prefix(message.guild.id, words[1])
-            await message.reply(f"Prefix updated to `{words[1]}`")
+            await reply(message, f"Prefix updated to `{words[1]}`")
             return
         elif command.strip().casefold() == "history":
             h = get_pretty_history(author_id)
@@ -218,7 +220,7 @@ async def on_message(message):
                 msg = f"History for {message.author.display_name}:\n```\n{h}\n```_(`!!` or `!<index>` to use)_"
             else:
                 msg = f"You have no rolling history on this channel"
-            await message.reply(msg)
+            await reply(message, msg)
             return
         elif match := history_command_regex.match(command.strip().casefold()):
             if match.group(1) == "!":
@@ -228,7 +230,7 @@ async def on_message(message):
             try:
                 cmd_from_history = get_history_item(author_id, index)
             except IndexError:
-                await message.reply(f":warning: No history item no.{index}")
+                await reply(message, f":warning: No history item no.{index}")
                 return
 
         if cmd_from_history:
@@ -247,7 +249,7 @@ async def on_message(message):
         else:
             response = ":warning: " + response
 
-        await message.reply(response)
+        await reply(message, response)
 
 
 def main():
