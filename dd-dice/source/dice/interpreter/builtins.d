@@ -65,22 +65,58 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 
 ExprResult fGet(Context context, ExprResult[] args)
 {
-	if (args.length != 2)
-		throw new EvalException("get takes a list and an index");
-	auto index_expr = args[1].reduced;
-	if (!args[0].isA!List || !index_expr.isA!Num)
-		throw new EvalException("get takes a list and an index");
-	auto index = index_expr.value.get!long;
-	try
+	if (args.length < 2 || args.length > 3)
+		throw new EvalException("get takes a list and an index, or a start and end index");
+	if (!args[0].isA!List)
+		throw new EvalException("get takes a list and an index, or a start and end index");
+		
+	if (args.length == 2)
 	{
-		if (index < 0)
-			return args[0].value.get!(ExprResult[])[$+index];
-		return args[0].value.get!(ExprResult[])[index];
+		auto indexExpr = args[1].reduced;
+		if (!indexExpr.isA!Num)
+			throw new EvalException("get takes a list and an index, or a start and end index");
+		auto index = indexExpr.value.get!long;
+		try
+		{
+			if (index < 0)
+				return args[0].value.get!(ExprResult[])[$+index];
+			return args[0].value.get!(ExprResult[])[index];
+		}
+		catch (RangeError e)
+			throw new EvalException(
+				format("Can't get element at index %s from a list of length %s",index,args[0].value.get!(ExprResult[]).length)
+				);
 	}
-	catch (RangeError e)
-		throw new EvalException(
-			format("Can't get element at index %s from a list of length %s",index,args[0].value.get!(ExprResult[]).length)
-			);
+	else
+	{
+		auto indexExprS = args[1].reduced;
+		auto indexExprE = args[2].reduced;
+		if (!indexExprS.isA!Num || !indexExprE.isA!Num)
+			throw new EvalException("get takes a list and an index, or a start and end index");
+		auto indexS = indexExprS.value.get!long;
+		auto indexE = indexExprE.value.get!long;
+		ExprResult[] slice;
+		try
+		{
+			// there must be a more clever way
+			if (indexS < 0)
+			{
+				if (indexE < 0)
+					slice = args[0].value.get!(ExprResult[])[$+indexS..$+indexE];
+				else
+					throw new RangeError();
+			}
+			else if (indexE < 0)
+				slice = args[0].value.get!(ExprResult[])[indexS..$+indexE];
+			else
+				slice = args[0].value.get!(ExprResult[])[indexS..indexE];
+			return autoBuildList(slice);
+		}
+		catch (RangeError e)
+			throw new EvalException(
+				format("Can't get elements %s..%s from a list of length %s",indexS, indexE,args[0].value.get!(ExprResult[]).length)
+				);
+	}
 }
 
 ExprResult fSort(alias predicate)(Context context, ExprResult[] args)
@@ -146,13 +182,7 @@ ExprResult fMap(Context context, ExprResult[] args)
 		results ~= eval(lambda.code, lambdaContext);
 	}
 	
-	if (results.all!(it=>it.isA!Bool))
-		return cast(ExprResult) new BoolList(results);
-	if (results.all!(it=>it.isA!Num))
-		return cast(ExprResult) new NumList(results);
-	if (results.all!(it=>it.isA!String))
-		return cast(ExprResult) new StringList(results);
-	return cast(ExprResult) new MixedList(results);
+	return autoBuildList(results);
 }
 
 ExprResult fFilter(Context context, ExprResult[] args)

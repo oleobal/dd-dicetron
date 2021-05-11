@@ -1,6 +1,6 @@
 # Expression language
 
-There is a formal grammar in `dd-dice/source/dice/parser.d` so I won't comment on it.
+There is a [formal grammar](/dd-dice/source/dice/parser.d) so I won't comment on it.
 However I wrote the intepreter so here's a bit about how it works.
 
 ## Dice rolling rules
@@ -123,55 +123,7 @@ Then you can replace `2d20.map(x=>x+1)` with `2d20.map{it+1}`.
 
 ### Supplied functions
 
-#### best/worst
-
-`NumList best(NumList, Num nbToTake=1)`
-
-`NumList worst(NumList, Num nbToTake=1)`
-
-Return the `nbToTake` best or worst elements of the list.
-`nbToTake` is optional and defaults to 1.
-
-As a side of effect of implementation, the output is sorted, but there is no
-guarantee of that.
-
-#### min/max
-
-`Num max(Num, Num,...)`
-
-`Num min(Num, Num,...)`
-
-Return the highest or lowest element of those supplied.
-
-If you want the highest or lowest element **of a list** (eg the result of a
-dice roll) use `best` or `worst`.
-
-#### map
-
-`List map(Function, List)`
-
-Return the list with the function applied to each element
-
-#### filter
-
-`List filter(Function, List)`
-
-Return the list, but with only elements for which the function returns `true`.
-This can return an empty list.
-
-#### get
-
-`ExprResult get(List, Num index)`
-
-Get the element at the given index (0-indexed). If the index is negative, count
-from the end of the list.
-
-#### sort/rsort
-
-`List sort(List)`
-
-Return a the list sorted, smallest element first in the case of `sort` and the
-reverse for `rsort`.
+See [functions](functions.md)
 
 ## Arithmetic division
 

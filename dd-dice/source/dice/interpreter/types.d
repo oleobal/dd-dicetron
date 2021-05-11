@@ -196,3 +196,15 @@ class Function : ExprResult
 		return typeid(repr).getHash(&repr);
 	}
 }
+
+
+ExprResult autoBuildList(ExprResult[] elements)
+{
+	if (elements.all!(it=>it.isA!Bool))
+		return cast(ExprResult) new BoolList(elements);
+	if (elements.all!(it=>it.isA!Num))
+		return cast(ExprResult) new NumList(elements);
+	if (elements.all!(it=>it.isA!String))
+		return cast(ExprResult) new StringList(elements);
+	return cast(ExprResult) new MixedList(elements);
+}
