@@ -86,12 +86,13 @@ class Context
 	{
 		string result = spaces(indent)~"Context(";
 		foreach(k,v;contents)
-			result~="\n"~spaces(indent+1) ~ k ~ " : " ~ v.to!string;
+			result~="\n"~spaces(indent+1) ~ k ~ ": " ~ v.to!string;
 		if (outer)
 			result~="\n"~outer.toString(indent+1);
 		if (result != spaces(indent)~"Context(")
-			result~="\n";
-		result~=")";
+			result~="\n"~spaces(indent)~")";
+		else
+			result~=")";
 		return result;
 	}
 }

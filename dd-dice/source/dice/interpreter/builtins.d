@@ -116,7 +116,7 @@ ExprResult fExplode(Context context, ExprResult[] args)
 		auto roll = cast(BoolList) args[0];
 		ExprResult[] result;
 		auto newRolls=roll.value.get!(ExprResult[]);
-		for(int safety=0; safety<100;safety++)
+		for (int safety=0; safety<100;safety++)
 		{
 			result~=newRolls;
 			auto c = newRolls.count!(a=>a.value.get!bool);
@@ -133,7 +133,7 @@ ExprResult fExplode(Context context, ExprResult[] args)
 			throw new EvalException("explode requires maxValue to be set");
 		ExprResult[] result;
 		auto newRolls=roll.value.get!(ExprResult[]);
-		for(int safety=0; safety<100;safety++)
+		for (int safety=0; safety<100;safety++)
 		{
 			result~=newRolls;
 			auto c = newRolls.count!(a=>a.value.get!long == roll.maxValue);

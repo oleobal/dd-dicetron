@@ -68,7 +68,6 @@ struct Repr
 		{
 			string result = "";
 			throw new Exception("To be implemented");
-			//for(ulong i; i++; i<input.length){}
 		}
 		
 		

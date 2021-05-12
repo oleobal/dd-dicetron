@@ -1,0 +1,16 @@
+{
+	"$schema": "./schema.json",
+	"name":"test",
+	"functions":[
+		{
+			"name":"testPlus",
+			"args":["a","b"],
+			"code": "a+b"
+		},
+		{
+			"name":"testMinus",
+			"args":["a","b"],
+			"code": "a-b"
+		}
+	]
+}

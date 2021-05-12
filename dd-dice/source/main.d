@@ -3,6 +3,7 @@ module main;
 import std.stdio;
 import std.algorithm.searching;
 import std.array;
+import std.file;
 import std.json;
 
 import dice;
@@ -34,8 +35,11 @@ int main(string[] args)
 	auto verbose=false;
 	auto jsonOutput=false;
 	auto expr="";
-	foreach(a;args[1..$])
+	string[] jsonModules;
+	
+	for(ulong i=1; i<args.length;i++)
 	{
+		auto a = args[i];
 		if (a =="-d" || a == "--debug")
 			verbose=true;
 		else if (a == "--json")
@@ -44,6 +48,12 @@ int main(string[] args)
 		{
 			writeln(helpMsg);
 			return 0;
+		}
+		else if (a=="--module")
+		{
+			i++;
+			assert(i<args.length);
+			jsonModules ~= readText(args[i]);
 		}
 		else
 			expr=a;
@@ -77,10 +87,28 @@ int main(string[] args)
 	}
 	
 	
-	
 	try
 	{
-		auto result = eval(tree);
+		auto context = new Context();
+		if (jsonModules.length > 0)
+			context = loadModule(jsonModules[0]);
+		if (jsonModules.length > 1)
+			foreach(m;jsonModules[1..$])
+			{
+				auto c = loadModule(m);
+				c.outer = context;
+				context = c;
+			}
+		
+		if (verbose)
+		{
+			if (jsonOutput)
+				machineResult["context"] = context.toString;
+			else
+				context.writeln;
+		}
+		
+		auto result = eval(tree, context);
 		string prettyResult;
 		if (result.value.type == typeid(bool))
 			prettyResult=result.value.get!bool?"Success":"Failure";

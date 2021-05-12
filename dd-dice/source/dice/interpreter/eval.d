@@ -171,8 +171,23 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			tree.children[1] = firstArg;
 			goto case;
 		case "FunCall":
+			auto name = tree.children[0].matches[0];
+			if (name in context && context[name].isA!Function)
+			{
+				auto f = cast(Function) context[name];
+				auto args = tree.children[1..$];
+				auto fContext = new Context(context);
+				if (args.length != f.args.length)
+					throw new EvalException("Trying to call %s(%s) with the wrong number (%s) of args".format(name, f.args.join(","), args.length));
+				for (ulong i=0;i<f.args.length;i++)
+				{
+					fContext[f.args[i]] = eval(args[i]);
+				}
+				return eval(f.code, fContext);
+			}
+			// fall back to builtins
 			return callFunction(
-				tree.children[0].matches[0],
+				name,
 				tree.children[1..$].map!(a=>a.eval(context)).array,
 				context,
 				tree.name.chompPrefix("DiceExpr.")
