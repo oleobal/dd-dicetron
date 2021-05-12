@@ -10,6 +10,7 @@ import std.algorithm;
 import dice.parser;
 import dice.roll;
 
+import dice.interpreter.repr;
 import dice.interpreter.types;
 import dice.interpreter.context;
 import dice.interpreter.builtins;
@@ -88,7 +89,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					
 				}
 				result.value = result.value.get!bool && thisOpResult;
-				result.reprTree = ReprTree([result.reprTree, ReprTree(c.matches[0]),secondOperand.reprTree]);
+				result.repr = result.repr ~ c.matches[0] ~ secondOperand.repr;
 				prevOperand = secondOperand;
 			}
 			return result;
@@ -192,18 +193,21 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "Coin":
 			auto noOfDice = 1L;
 			auto die=tree;
-			ReprTree[] repr;
+			Repr[] reprInput;
 			if (tree.name == "DiceExpr.MulDie")
 			{
 				die = tree.children[1];
 				auto noOfDiceExpr = tree.children[0].eval(context);
-				repr ~= noOfDiceExpr.reprTree;
+				reprInput ~= noOfDiceExpr.reprTree;
 				noOfDice = noOfDiceExpr.reduced.value.coerce!long;
 			}
+			else
+				reprInput~= Repr("1");
 			
 			if (die.name == "DiceExpr.Die")
 			{
 				auto sizeOfDice = die.children[0].eval(context).value.coerce!long;
+				reprInput ~= Repr(sizeOfDice.to!string);
 				// safeties at about 0.01% of long.max
 				// (this check is per dice roll, and long.max is for the entire result, so..)
 				if (noOfDice  > 9_999_999 || noOfDice<0)
@@ -214,7 +218,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					return cast(ExprResult) new Num(0, "[0]");
 				
 				auto dice = rollDice(noOfDice, sizeOfDice);
-				return cast(ExprResult) new NumRoll(dice, sizeOfDice, repr);
+				return cast(ExprResult) new NumRoll(dice, sizeOfDice, reprInput);
 			}
 			else if (die.name == "DiceExpr.Coin")
 			{
@@ -238,11 +242,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			else if (die.name == "DiceExpr.CustomDie")
 			{
 				auto choices = die.children.map!(x=>x.eval(context).reduced);
+				reprInput ~= Repr("<"~choices.map!(it=>it.toString).join(",")~">");
 				ExprResult[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
 				if (dice.all!(it=>it.isA!Bool))
 					return cast(ExprResult) new BoolList(dice, dice.to!string);
 				if (dice.all!(it=>it.isA!Num))
-					return cast(ExprResult) new NumRoll(dice, -1,repr); // FIXME
+					return cast(ExprResult) new NumRoll(dice, 0, reprInput);
 				if (dice.all!(it=>it.isA!String))
 					return cast(ExprResult) new StringList(dice, dice.to!string);
 				return cast(ExprResult) new MixedList(dice, dice.to!string);
@@ -254,19 +259,19 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "Neg":
 			auto base = tree.children[0].eval(context).reduced;
 			base.value = -base.value.get!long;
-			base.reprTree = ReprTree([ReprTree("-"), base.reprTree]);
+			base.reprTree = Repr(base.reprTree, "-");
 			return base;
 		
 		case "Not":
 			auto base = tree.children[0].eval(context).reduced;
 			base.value = !base.value.get!bool;
-			base.reprTree = ReprTree([ReprTree("!"), base.reprTree]);
+			base.reprTree = Repr(base.reprTree, "!");
 			return base;
 		
 		case "Parens":
 		case "BParens":
 			auto base = eval(tree.children[0]);
-			base.reprTree = ReprTree([ReprTree("("), base.reprTree, ReprTree(")")]);
+			base.reprTree = base.reprTree; // FIXME?
 			return base;
 			
 		case "Number":

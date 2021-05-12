@@ -33,7 +33,8 @@ There are currently:
  - `String`
  - and corresponding lists:
    - `MixedList` which don't provide any guarantee as to what they contain
-   - `NumList`
+   - `NumList` which has a `maxValue` (see corresponding section)
+     - `NumRoll` which represent a "natural" roll (see corresponding section)
    - `BoolList`
    - `StringList`
    - `List` is used to mean "any of these" (abstract, can't exist)
@@ -54,6 +55,24 @@ The reason for preserving the rolls is that some functions
 We could conceivably have two types of lists of numbers, ones that are silently
 reducibles and ones that aren't. But I think it would be very obscure to the
 point of uselessness.
+
+#### NumList & NumRoll
+
+`NumRoll` is simply a `NumList` with a different constructor, which represents
+the result of a `xdy` expression (or a numeric custom die).
+
+For features such as exploding dice, it is necessary to store the maximum possible
+value of a roll along with the resulting list. This property is called `maxValue`.
+
+I have been ping-ponging between giving this property to `NumRoll` or `NumList`.
+Basically the reason `NumRoll` exists is to give them a special constructor that
+makes it easier to give them a pretty Repr; this comes with a few assertions
+like "there are always two inputs to a NumRoll (number & size of dice)", which
+are not true anymore if the roll is fed to a function.
+
+Ultimately I gave the property to `NumList`, so `NumRoll` solely represents the
+direct result of a numeric dice roll and is replaced with a `NumList` when fed
+to a function.
 
 #### Empty lists
 
@@ -138,26 +157,5 @@ returns an integer.
 The `ExprResult` class has a `repr` field which is supposedly to help the user
 understand what happened in the interpreter (specifically, what their rolls were).
 
-It immediatly gets derailed when a roll of dice gets used to parametrize another.
-
-For example:
- - `2d20.map(d=>d+1d4)` giving `[10+6].map(d => d+1d4): 22`
- - `(1d4)d20` giving `[7+10+11]: 28`
-
-In both cases we lose the immediate result of dice.
-I'm not sure what the ideal display would be in these cases. I'm thinking of
-splitting it into multiple lines:
- - `2d20.map(d=>d+1d4)`
-   ```
-   [10+6].map(d => d+1d4)
-    -> 10+[4]
-    -> 6+[2]
-   ```
- - `(1d4)d20`
-   ```
-   [3]d20
-    -> [7+10+11]
-   28
-   ```
-
-No idea how I'd achieve like that precisely. Must think about it more.
+It is basically a tree that is silently converted to a string when called upon,
+which enables most of the old code that expects a string to work still.

@@ -10,6 +10,7 @@ import std.array;
 
 import pegged.peg;
 
+import dice.interpreter.repr;
 import dice.interpreter.context;
 import dice.interpreter.eval;
 
@@ -35,51 +36,6 @@ string debuginfo(T)(T v)
 	return v.typename~"("~v.to!string~")";
 }
 
-string indent(string s)
-{
-	return " "~s.replace("\n", "\n ");
-}
-
-struct ReprTree
-{
-	bool isLeaf;
-	bool isRoll=false;
-	string leaf;
-	ReprTree[] children;
-	
-	this(string s)
-	{
-		isLeaf=true;
-		leaf=s;
-	}
-	/+
-	// result in errors I don't understand
-	this(ReprTree[] p ...)
-	{
-		this(p);
-	}
-	+/
-	this(ReprTree[] p)
-	{
-		isLeaf=false;
-		children=p;
-	}
-	
-	bool hasRoll() const
-	{
-		if (isLeaf)
-			return isRoll;
-		return isRoll || children.any!(it=>it.hasRoll);
-	}
-	
-	string toString() const
-	{
-		if (isLeaf)
-			return leaf;
-		return reduce!((acc,it)=>acc~=it.toString)("", children);
-	}
-}
-
 
 abstract class ExprResult {
 	Algebraic!(long, bool, string, ExprResult[]) value;
@@ -91,11 +47,11 @@ abstract class ExprResult {
 	}
 	string repr(string s)
 	{
-		reprTree = ReprTree(s);
+		reprTree = Repr(s);
 		return s;
 	}
 	
-	ReprTree reprTree = ReprTree();
+	Repr reprTree = Repr();
 	
 	
 	/// whether this is the direct result of a dice roll
@@ -144,13 +100,22 @@ class Num : ExprResult
 class NumList : Num, List
 {
 	
+	/++
+	 + the maximum possible value of the corresponding roll
+	 + used for explosions
+	 + not guaranteed to be there
+	 +/
+	long maxValue;
+	
 	this() {}
-	this (long[] a) { this(a, genRepr(a)); }
+	this (long[] a) { this(a, genOutputRepr(a)); }
+	this (long[] a, long max) { maxValue = max; this(a); }
 	this (long[] a, string b) { value = a.map!(it=>cast(ExprResult) new Num(it)).array; repr = b; }
-	this (ExprResult[] a) { this(a, genRepr(a)); }
+	this (ExprResult[] a) { this(a, genOutputRepr(a)); }
+	this (ExprResult[] a, long max) { maxValue = max; this(a, genOutputRepr(a)); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Num)) ; value = a; repr = b; }
 	
-	string genRepr(T)(T a)
+	string genOutputRepr(T)(T a)
 	{
 		static assert(isArray!T);
 		return "["~a.map!(it=>it.to!string).join("+")~"]";
@@ -161,14 +126,12 @@ class NumList : Num, List
 	}
 }
 
+/++ 
+ + represents a "true" NumRoll (ie the result of xdy)
+ + as soon as they go through functions they become NumLists
+ +/
 class NumRoll : NumList, Roll
 {
-	
-	/++
-	 + the maximum possible value of the corresponding roll
-	 + used for explosions
-	 +/
-	long maxValue;
 	
 	this() {}
 	this (long[] a, long max)
@@ -179,16 +142,14 @@ class NumRoll : NumList, Roll
 	{
 		this(a, max, []);
 	}
-	this (long[] a, long max, ReprTree[] predecessor)
+	this (long[] a, long max, Repr[] predecessor)
 	{
 		this(a.map!(it=>cast(ExprResult) new Num(it)).array, max, predecessor);
 	}
-	this (ExprResult[] a, long max, ReprTree[] predecessor)
+	this (ExprResult[] a, long max, Repr[] predecessor)
 	{
 		maxValue = max;
-		auto newRepr = ReprTree(genRepr(a));
-		newRepr.isRoll=true;
-		reprTree = ReprTree(predecessor~newRepr);
+		reprTree = Repr(predecessor, "d", genOutputRepr(a), true);
 		value = a;
 	}
 }
@@ -203,12 +164,12 @@ class Bool : Num
 class BoolList : Bool, List
 {
 	this() {}
-	this (bool[] a) { this(a, genRepr(a)); }
+	this (bool[] a) { this(a, genOutputRepr(a)); }
 	this (bool[] a, string b) { value = a.map!(it=>cast(ExprResult) new Bool(it)).array; repr = b; }
-	this (ExprResult[] a) { this(a, genRepr(a)); }
+	this (ExprResult[] a) { this(a, genOutputRepr(a)); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Bool)) ; value = a; repr = b; }
 	
-	string genRepr(T)(T a)
+	string genOutputRepr(T)(T a)
 	{
 		static assert(isArray!T);
 		return "["~a.map!(it=>it.to!string).join("+")~"]";
@@ -297,7 +258,7 @@ ExprResult autoBuildList(ExprResult[] elements, long maxValue=0)
 	if (elements.all!(it=>it.isA!Num))
 	{
 		if (maxValue)
-			return cast(ExprResult) new NumRoll(elements, maxValue);
+			return cast(ExprResult) new NumList(elements, maxValue);
 		return cast(ExprResult) new NumList(elements);
 	}
 	if (elements.all!(it=>it.isA!String))

@@ -27,7 +27,7 @@ Parsing of arbitrary comparisons, Python-style chaining
   $ dd-dice '20 <= 2d20+5 <= 35'
 20<=[6+1]+5<=35: Failure
 ```
-Filtering with function calls (and with UFCS, `f(x)` is equivalent to `f.a`)
+Filtering with function calls (and with UFCS, `f(x)` is equivalent to `x.f`)
 ```
   $ dd-dice '4d20.best(3).worst(2)'
 [7+5+1+15].best(3).worst(2): 12

@@ -94,7 +94,7 @@ ExprResult fBest(alias predicate)(Context context, ExprResult[] args)
 		if (args[0].isA!Bool)
 			return new BoolList(args[0].value.get!(ExprResult[]).sort!(predicate)[0..nbToTake].array);
 		else if (args[0].isA!NumRoll)
-			return new NumRoll(
+			return new NumList(
 				args[0].value.get!(ExprResult[]).sort!(predicate)[0..nbToTake].array,
 				(cast(NumRoll) args[0]).maxValue
 			);
@@ -141,7 +141,7 @@ ExprResult fExplode(Context context, ExprResult[] args)
 				break;
 			newRolls = rollDice(c, roll.maxValue).map!(a=>cast(ExprResult) new Num(a)).array;
 		}
-		return new NumRoll(result, roll.maxValue);
+		return new NumList(result, roll.maxValue);
 	}
 }
 
@@ -193,8 +193,8 @@ ExprResult fFilter(Context context, ExprResult[] args)
 			results~=a;
 	}
 	
-	if (args[0].isA!NumRoll)
-		return autoBuildList(results, (cast(NumRoll) args[0]).maxValue);
+	if (args[0].isA!NumList)
+		return autoBuildList(results, (cast(NumList) args[0]).maxValue);
 	return autoBuildList(results);
 }
 
@@ -277,7 +277,7 @@ ExprResult fSort(alias predicate)(Context context, ExprResult[] args)
 	if (args[0].isA!Bool)
 		return new BoolList(args[0].value.get!(ExprResult[]).sort!(predicate).array);
 	else if (args[0].isA!NumRoll)
-		return new NumRoll(
+		return new NumList(
 			args[0].value.get!(ExprResult[]).sort!(predicate).array,
 			(cast(NumRoll) args[0]).maxValue
 		);
