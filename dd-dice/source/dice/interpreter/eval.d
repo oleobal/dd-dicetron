@@ -88,7 +88,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					
 				}
 				result.value = result.value.get!bool && thisOpResult;
-				result.repr = result.repr ~ c.matches[0] ~secondOperand.repr;
+				result.reprTree = ReprTree([result.reprTree, ReprTree(c.matches[0]),secondOperand.reprTree]);
 				prevOperand = secondOperand;
 			}
 			return result;
@@ -192,10 +192,13 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "Coin":
 			auto noOfDice = 1L;
 			auto die=tree;
+			ReprTree[] repr;
 			if (tree.name == "DiceExpr.MulDie")
 			{
 				die = tree.children[1];
-				noOfDice = tree.children[0].eval(context).reduced.value.coerce!long;
+				auto noOfDiceExpr = tree.children[0].eval(context);
+				repr ~= noOfDiceExpr.reprTree;
+				noOfDice = noOfDiceExpr.reduced.value.coerce!long;
 			}
 			
 			if (die.name == "DiceExpr.Die")
@@ -211,7 +214,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					return cast(ExprResult) new Num(0, "[0]");
 				
 				auto dice = rollDice(noOfDice, sizeOfDice);
-				return cast(ExprResult) new NumList(dice, sizeOfDice);
+				return cast(ExprResult) new NumRoll(dice, sizeOfDice, repr);
 			}
 			else if (die.name == "DiceExpr.Coin")
 			{
@@ -239,7 +242,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				if (dice.all!(it=>it.isA!Bool))
 					return cast(ExprResult) new BoolList(dice, dice.to!string);
 				if (dice.all!(it=>it.isA!Num))
-					return cast(ExprResult) new NumList(dice, dice.to!string);
+					return cast(ExprResult) new NumRoll(dice, -1,repr); // FIXME
 				if (dice.all!(it=>it.isA!String))
 					return cast(ExprResult) new StringList(dice, dice.to!string);
 				return cast(ExprResult) new MixedList(dice, dice.to!string);
@@ -251,19 +254,19 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "Neg":
 			auto base = tree.children[0].eval(context).reduced;
 			base.value = -base.value.get!long;
-			base.repr = "-"~base.repr;
+			base.reprTree = ReprTree([ReprTree("-"), base.reprTree]);
 			return base;
 		
 		case "Not":
 			auto base = tree.children[0].eval(context).reduced;
 			base.value = !base.value.get!bool;
-			base.repr = "!"~base.repr;
+			base.reprTree = ReprTree([ReprTree("!"), base.reprTree]);
 			return base;
 		
 		case "Parens":
 		case "BParens":
 			auto base = eval(tree.children[0]);
-			base.repr = "("~base.repr~")";
+			base.reprTree = ReprTree([ReprTree("("), base.reprTree, ReprTree(")")]);
 			return base;
 			
 		case "Number":

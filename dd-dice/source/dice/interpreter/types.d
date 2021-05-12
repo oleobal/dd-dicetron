@@ -35,18 +35,76 @@ string debuginfo(T)(T v)
 	return v.typename~"("~v.to!string~")";
 }
 
+string indent(string s)
+{
+	return " "~s.replace("\n", "\n ");
+}
+
+struct ReprTree
+{
+	bool isLeaf;
+	bool isRoll=false;
+	string leaf;
+	ReprTree[] children;
+	
+	this(string s)
+	{
+		isLeaf=true;
+		leaf=s;
+	}
+	/+
+	// result in errors I don't understand
+	this(ReprTree[] p ...)
+	{
+		this(p);
+	}
+	+/
+	this(ReprTree[] p)
+	{
+		isLeaf=false;
+		children=p;
+	}
+	
+	bool hasRoll() const
+	{
+		if (isLeaf)
+			return isRoll;
+		return isRoll || children.any!(it=>it.hasRoll);
+	}
+	
+	string toString() const
+	{
+		if (isLeaf)
+			return leaf;
+		return reduce!((acc,it)=>acc~=it.toString)("", children);
+	}
+}
+
 
 abstract class ExprResult {
 	Algebraic!(long, bool, string, ExprResult[]) value;
 	
 	/// string representation to give insight into the interpreter
-	string repr;
+	string repr() const
+	{
+		return reprTree.toString;
+	}
+	string repr(string s)
+	{
+		reprTree = ReprTree(s);
+		return s;
+	}
+	
+	ReprTree reprTree = ReprTree();
+	
+	
+	/// whether this is the direct result of a dice roll
+	bool isRoll=false;
 	
 	abstract ExprResult reduced();
 	
-	override string toString() const // adding const causes problems I don't understand
+	override string toString() const
 	{
-		
 		if (value.type == typeid(ExprResult[]))
 			return value.get!(ExprResult[]).map!(it=>it.to!string).join(",");
 		else if ( value.type == typeid(long))
@@ -59,8 +117,6 @@ abstract class ExprResult {
 			return value.to!string;
 			// doesn't work well with const
 			// because VariantN.coerce doesn't work on const objects
-		
-		
 	}
 	
 	override bool opEquals(const Object o) const
@@ -75,8 +131,8 @@ abstract class ExprResult {
 	}
 }
 
-interface List {
-}
+interface List {}
+interface Roll {}
 
 class Num : ExprResult
 {
@@ -87,18 +143,11 @@ class Num : ExprResult
 }
 class NumList : Num, List
 {
-	/++
-	 + the maximum possible value of the corresponding roll
-	 + used for explosions
-	 +/
-	long maxValue;
 	
 	this() {}
 	this (long[] a) { this(a, genRepr(a)); }
-	this (long[] a, long max) { maxValue = max; this(a); }
 	this (long[] a, string b) { value = a.map!(it=>cast(ExprResult) new Num(it)).array; repr = b; }
 	this (ExprResult[] a) { this(a, genRepr(a)); }
-	this (ExprResult[] a, long max) { maxValue = max; this(a, genRepr(a)); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Num)) ; value = a; repr = b; }
 	
 	string genRepr(T)(T a)
@@ -111,6 +160,39 @@ class NumList : Num, List
 		return cast(ExprResult) new Num(value.get!(ExprResult[]).map!(it=>it.value.get!long).sum, repr);
 	}
 }
+
+class NumRoll : NumList, Roll
+{
+	
+	/++
+	 + the maximum possible value of the corresponding roll
+	 + used for explosions
+	 +/
+	long maxValue;
+	
+	this() {}
+	this (long[] a, long max)
+	{
+		this(a, max, []);
+	}
+	this (ExprResult[] a, long max)
+	{
+		this(a, max, []);
+	}
+	this (long[] a, long max, ReprTree[] predecessor)
+	{
+		this(a.map!(it=>cast(ExprResult) new Num(it)).array, max, predecessor);
+	}
+	this (ExprResult[] a, long max, ReprTree[] predecessor)
+	{
+		maxValue = max;
+		auto newRepr = ReprTree(genRepr(a));
+		newRepr.isRoll=true;
+		reprTree = ReprTree(predecessor~newRepr);
+		value = a;
+	}
+}
+
 class Bool : Num
 {
 	this() {}
@@ -196,13 +278,15 @@ class Function : ExprResult
 	}
 	override string toString() const
 	{
-		return repr;
+		return repr();
 	}
+	/+
 	override size_t toHash() const
 	{
 		// Counting on the repr being about equal to code.input[code.begin..code.end]
-		return typeid(repr).getHash(&repr);
+		return typeid(repr()).getHash(&repr);
 	}
+	+/
 }
 
 
@@ -213,7 +297,7 @@ ExprResult autoBuildList(ExprResult[] elements, long maxValue=0)
 	if (elements.all!(it=>it.isA!Num))
 	{
 		if (maxValue)
-			return cast(ExprResult) new NumList(elements, maxValue);
+			return cast(ExprResult) new NumRoll(elements, maxValue);
 		return cast(ExprResult) new NumList(elements);
 	}
 	if (elements.all!(it=>it.isA!String))

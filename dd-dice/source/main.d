@@ -92,7 +92,12 @@ int main(string[] args)
 		if (jsonOutput)
 			machineResult.writeln;
 		else
-			writeln(result.repr~": "~prettyResult);
+		{
+			if (canFind(result.repr, "\n"))
+				writeln(result.repr~"\n"~prettyResult);
+			else
+				writeln(result.repr~": "~prettyResult);
+		}
 	}
 	catch (EvalException e)
 	{
