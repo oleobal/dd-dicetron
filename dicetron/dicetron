@@ -107,15 +107,16 @@ def get_dice_help():
 
 def roll_dice(expr) -> tuple[bool, str]:
     p = subprocess.run(
-        [os.environ["DD_DICE_PATH"], "--machine", expr], capture_output=True
+        [os.environ["DD_DICE_PATH"], "--json", expr], capture_output=True
     )
     if p.returncode == 0:
-        lines = p.stdout.decode("utf-8").split("\n")
-        if len(lines[0]) > 100:
-            lines[0] = "[too long]"
-        if len(lines[2]) > 0:  # error
-            return (False, lines[2])
-        return (True, "`" + lines[0] + "`: **" + lines[1] + "**")
+        result = json.loads(p.stdout.decode("utf-8"))
+        if not result.get("successful", True) :
+            return (False, result.get("error", ""))
+        repres = result.get("repr", "")
+        if len(repres) > 100:
+            repres = "[too long]"
+        return (True, f"`{repres}`: **{result.get('output', '')}**")
     else:
         return (False, "Error")
 

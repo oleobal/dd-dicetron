@@ -3,6 +3,7 @@ module main;
 import std.stdio;
 import std.algorithm.searching;
 import std.array;
+import std.json;
 
 import dice;
 
@@ -31,14 +32,14 @@ Coin flips:                       coin + 4 coins
 int main(string[] args)
 {
 	auto verbose=false;
-	auto machineReadable=false;
+	auto jsonOutput=false;
 	auto expr="";
 	foreach(a;args[1..$])
 	{
 		if (a =="-d" || a == "--debug")
 			verbose=true;
-		else if (a == "--machine")
-			machineReadable=true;
+		else if (a == "--json")
+			jsonOutput=true;
 		else if (a =="-h" || a == "--help")
 		{
 			writeln(helpMsg);
@@ -47,18 +48,32 @@ int main(string[] args)
 		else
 			expr=a;
 	}
+	
+	JSONValue machineResult = ["successful" : true];
+	
 	auto tree = parse(expr);
+	
 	if (verbose)
-		writeln(tree);
+	{
+		if (jsonOutput)
+			machineResult["parseTree"] = tree.toString;
+		else
+			tree.writeln;
+	}
 	if (!tree.successful)
 	{
-		if (machineReadable)
+		if (jsonOutput)
 		{
-			writeln("\n\n"~tree.failMsg);
+			machineResult["successful"] = false;
+			machineResult.object["error"] = tree.failMsg;
+			machineResult.writeln;
 			return 0;
 		}
-		writeln("Parsing error: "~tree.failMsg);
-		return 1;
+		else
+		{
+			writeln("Parsing error: "~tree.failMsg);
+			return 1;
+		}
 	}
 	
 	
@@ -71,16 +86,22 @@ int main(string[] args)
 			prettyResult=result.value.get!bool?"Success":"Failure";
 		else
 			prettyResult=result.toString;
+		machineResult.object["output"] = prettyResult;
+		machineResult.object["repr"] = result.repr;
 		
-		if (machineReadable)
-			writeln(result.repr~"\n"~prettyResult~"\n");
+		if (jsonOutput)
+			machineResult.writeln;
 		else
 			writeln(result.repr~": "~prettyResult);
 	}
 	catch (EvalException e)
 	{
-		if (machineReadable)
-			writeln("\n\n"~e.msg);
+		if (jsonOutput)
+		{
+			machineResult["error"] = e.msg;
+			machineResult.writeln;
+			return 0;
+		}
 		else
 			throw e;
 	}
