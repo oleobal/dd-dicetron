@@ -6,7 +6,8 @@ from struct import pack
 import re
 
 from lib.history import History
-from lib.data import *
+from lib.modules import *
+from lib.prefixes import *
 from lib.dice import *
 from lib.util import *
 
@@ -14,6 +15,7 @@ history_command_regex = re.compile(r"!(!|[0-9]+)")
 
 
 history = History()
+available_modules=[]
 prefixes = {}
 global_prefix = "!dddt"
 
@@ -66,6 +68,7 @@ async def on_message(message):
         return
 
     if command := decide_answer_message(message, global_prefix, prefixes):
+        prefix = prefixes.get(message.guild.id, global_prefix)
         cmd_from_history = None
         author_id = b"%x%x" % (
             message.author.id,
@@ -79,12 +82,12 @@ async def on_message(message):
                 ),
             )
             return
+        
         elif command.strip().casefold().startswith("prefix"):
             if not message.guild:
                 return
             words = command.strip().casefold().split()
             if len(words) == 1:
-                prefix = prefixes.get(message.guild.id, global_prefix)
                 if message.guild.id in prefixes:
                     await reply(
                         message,
@@ -99,6 +102,31 @@ async def on_message(message):
             set_guild_prefix(message.guild.id, words[1])
             await reply(message, f"Prefix updated to `{words[1]}`")
             return
+        
+        elif command.strip().casefold().startswith("module"):
+            words = command.strip().casefold().split()
+            if len(words) == 1:
+                if len(available_modules) == 0:
+                    await reply(message, "No modules available for this server")
+                    return
+                row="{:<10} {}\n"
+                msg=row.format("id", "name")
+                for m in available_modules:
+                    msg+=row.format(m["id"], m["name"])
+                await reply(message,
+                trim_indent(f"""
+                Available modules:
+                ```""")
+                +msg
+                +trim_indent(f"""
+                ```
+                Load one with `{prefix} module load <id>`
+                """))
+                return
+            else if len(words) == 3:
+                
+            
+            
         elif command.strip().casefold() == "history":
             h = history.get_pretty_history(author_id)
             if h:
@@ -117,6 +145,7 @@ async def on_message(message):
             except IndexError:
                 await reply(message, f":warning: No history item no.{index}")
                 return
+
 
         if cmd_from_history:
             dice_expr, *comment = cmd_from_history.split("#", maxsplit=1)
@@ -143,6 +172,8 @@ def main():
 
     global prefixes
     prefixes = load_prefixes()
+    global available_modules
+    available_modules = list_available_modules()
 
     client.run(os.environ["DD_DISCORD_API_TOKEN"])
 
