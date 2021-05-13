@@ -128,7 +128,7 @@ class NumList : Num, List
 	string genOutputRepr(T)(T a)
 	{
 		static assert(isArray!T);
-		return "["~a.map!(it=>it.to!string).join("+")~"]";
+		return "["~a.map!(it=>it.to!string).join(",")~"]";
 	}
 	
 	override string toString() const
@@ -173,7 +173,7 @@ class NumRoll : NumList, Roll
 	this (ExprResult[] a, long max, Repr[] predecessor)
 	{
 		maxValue = max;
-		reprTree = Repr(predecessor, "d", genOutputRepr(a), ReprOpt.roll, ReprOpt.list);
+		reprTree = Repr(predecessor, "d", genOutputRepr(a), ReprOpt.roll, ReprOpt.arithmetic);
 		value = a;
 	}
 }
@@ -203,7 +203,7 @@ class BoolList : Bool, List
 	string genOutputRepr(T)(T a)
 	{
 		static assert(isArray!T);
-		return "["~a.map!(it=>it.to!string).join("+")~"]";
+		return "["~a.map!(it=>it.to!string).join(",")~"]";
 	}
 	
 	override ExprResult reduced() { // FIXME

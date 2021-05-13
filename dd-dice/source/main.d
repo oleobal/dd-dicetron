@@ -32,16 +32,19 @@ Coin flips:                       coin + 4 coins
 
 int main(string[] args)
 {
-	auto verbose=false;
-	auto jsonOutput=false;
+	bool verbose;
+	bool explain;
+	bool jsonOutput;
 	auto expr="";
 	string[] jsonModules;
 	
 	for(ulong i=1; i<args.length;i++)
 	{
 		auto a = args[i];
-		if (a =="-d" || a == "--debug")
+		if (a == "--debug")
 			verbose=true;
+		else if (a == "--explain")
+			explain=true;
 		else if (a == "--json")
 			jsonOutput=true;
 		else if (a =="-h" || a == "--help")
@@ -115,16 +118,27 @@ int main(string[] args)
 		else
 			prettyResult=result.toString;
 		machineResult.object["output"] = prettyResult;
-		machineResult.object["repr"] = result.repr;
+		
+		auto repr = result.reprTree.toString(explain);
+		
+		if (verbose)
+		{
+			if (jsonOutput)
+				machineResult["reprTreeDebug"] = result.reprTree.debugTree;
+			else
+				result.reprTree.debugTree.writeln;
+		}
+		
+		machineResult.object["repr"] = repr;
 		
 		if (jsonOutput)
 			machineResult.writeln;
 		else
 		{
-			if (canFind(result.repr, "\n"))
-				writeln(result.repr~"\n"~prettyResult);
+			if (canFind(repr, "\n"))
+				writeln(repr~"\n"~prettyResult);
 			else
-				writeln(result.repr~": "~prettyResult);
+				writeln(repr~": "~prettyResult);
 		}
 	}
 	catch (EvalException e)

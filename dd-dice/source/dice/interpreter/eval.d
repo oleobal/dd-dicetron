@@ -293,7 +293,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		
 		case "Parens":
 			auto base = eval(tree.children[0], context);
-			base.reprTree = base.reprTree; // not sure this is great but it works
+			base.reprTree = Repr([base.reprTree], "Parens", base.to!string, ReprOpt.parens);
 			return base;
 		
 		case "List":
