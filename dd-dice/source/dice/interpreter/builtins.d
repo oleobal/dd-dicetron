@@ -12,6 +12,7 @@ import dice.roll;
 import dice.interpreter.context;
 import dice.interpreter.types;
 import dice.interpreter.eval;
+import dice.interpreter.repr;
 
 ExprResult callFunction(string name, ExprResult[] args, Context context, string callingStyle="FunCall")
 {
@@ -81,7 +82,7 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 			throw new EvalException("Unknown function: "~name);
 	}
 	
-	res.repr = repr;
+	res.reprTree = Repr(args.map!(it=>it.reprTree).array, name, res.to!string, ReprOpt.dotCall);
 	return res;
 }
 

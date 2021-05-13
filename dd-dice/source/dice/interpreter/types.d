@@ -93,9 +93,10 @@ interface Roll {}
 class Num : ExprResult
 {
 	this() {}
-	this (long a) { value = a ; repr = a.to!string; }
-	this (long a, string b) { value = a; repr = b; }
-	override ExprResult reduced() {return cast(ExprResult) new Num(value.get!long, repr);}
+	this (long a) { this(a, a.to!string); }
+	this (long a, string b) { this(a, Repr(b)); }
+	this (long a, Repr b) { value = a; reprTree = b; }
+	override ExprResult reduced() {return cast(ExprResult) new Num(value.get!long, reprTree);}
 }
 class NumList : Num, List
 {
@@ -120,7 +121,7 @@ class NumList : Num, List
 		assert(a.all!(it=>it.isA!Num));
 		
 		value = a;
-		reprTree = Repr(a.map!(it=>it.reprTree).array, "NumList", outputRepr);
+		reprTree = Repr(a.map!(it=>it.reprTree).array, "NumList", outputRepr, ReprOpt.list);
 	}
 	
 	
@@ -145,7 +146,7 @@ class NumList : Num, List
 			else
 				val~=e.value.get!long;
 		}
-		return cast(ExprResult) new Num(val.sum,repr);
+		return cast(ExprResult) new Num(val.sum, reprTree);
 	}
 }
 
@@ -172,7 +173,7 @@ class NumRoll : NumList, Roll
 	this (ExprResult[] a, long max, Repr[] predecessor)
 	{
 		maxValue = max;
-		reprTree = Repr(predecessor, "d", genOutputRepr(a), true);
+		reprTree = Repr(predecessor, "d", genOutputRepr(a), ReprOpt.roll, ReprOpt.list);
 		value = a;
 	}
 }
@@ -180,17 +181,24 @@ class NumRoll : NumList, Roll
 class Bool : Num
 {
 	this() {}
-	this (bool a) { value = a; repr = a?"T":"F";}
-	this (bool a, string b) { value = a; repr = b; }
-	override ExprResult reduced() {return cast(ExprResult) new Bool(value.get!bool, repr);}
+	this (bool a) { this(a, a?"T":"F");}
+	this (bool a, string b) { this(a, Repr(b)); }
+	this(bool a, Repr b) { value = a; reprTree = b;}
+	override ExprResult reduced() {return cast(ExprResult) new Bool(value.get!bool, reprTree);}
 }
 class BoolList : Bool, List
 {
 	this() {}
 	this (bool[] a) { this(a, genOutputRepr(a)); }
-	this (bool[] a, string b) { value = a.map!(it=>cast(ExprResult) new Bool(it)).array; repr = b; }
+	this (bool[] a, string b) { this(a.map!(it=>cast(ExprResult) new Bool(it)).array, b); }
 	this (ExprResult[] a) { this(a, genOutputRepr(a)); }
-	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Bool)) ; value = a; repr = b; }
+	this (ExprResult[] a, string b) { this(a, Repr(b));}
+	
+	this(ExprResult[] a, Repr b) {
+		assert(a.all!(it=>it.isA!Bool));
+		value = a;
+		reprTree = b;
+	}
 	
 	string genOutputRepr(T)(T a)
 	{

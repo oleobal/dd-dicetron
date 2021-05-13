@@ -114,7 +114,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					{
 						if (!base.isA!String)
 							base = new StringList([base.value.coerce!string], base.repr);
-						if (!base.isA!String)
+						if (!cfactor.isA!String)
 							cfactor = new StringList([cfactor.value.coerce!string], cfactor.repr);
 						base.value=base.value~cfactor.value;
 					}
@@ -122,14 +122,14 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 						base.value=base.value+cfactor.value;
 					else
 						throw new Exception("Can't add terms "~base.repr~" and "~cfactor.repr);
-					base.repr=base.repr~"+"~cfactor.repr;
+					base.reprTree=Repr([base.reprTree, cfactor.reprTree], "+", base.to!string, ReprOpt.arithmetic);
 				}
 				else if (c.name == "DiceExpr.Sub")
 				{
 					if (!base.isA!Num || !cfactor.isA!Num)
 						throw new Exception("Can't substract terms "~base.repr~" and "~cfactor.repr);
 					base.value=base.value-cfactor.value;
-					base.repr=base.repr~"-"~cfactor.repr;
+					base.reprTree=Repr([base.reprTree, cfactor.reprTree], "-", base.to!string, ReprOpt.arithmetic);
 				}
 				else
 					throw new EvalException("Unhandled factor: "~c.name);
@@ -149,12 +149,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				if (c.name == "DiceExpr.Mul")
 				{
 					base.value=base.value*cfactor.value;
-					base.repr=base.repr~"*"~cfactor.repr;
+					base.reprTree=Repr([base.reprTree, cfactor.reprTree], "*", base.to!string, ReprOpt.arithmetic);
 				}
 				else if (c.name == "DiceExpr.Div")
 				{
 					base.value=base.value/cfactor.value;
-					base.repr=base.repr~"/"~cfactor.repr;
+					base.reprTree=Repr([base.reprTree, cfactor.reprTree], "/", base.to!string, ReprOpt.arithmetic);
 				}
 				else
 					throw new EvalException("Unhandled factor: "~c.name);
@@ -182,11 +182,14 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				ExprResult[] evalArgs;
 				for (ulong i=0;i<f.args.length;i++)
 				{
-					evalArgs ~= eval(args[i]);
+					evalArgs ~= eval(args[i], context);
 					fContext[f.args[i]] = evalArgs[$-1];
 				}
 				auto res = eval(f.code, fContext);
-				res.reprTree = Repr(evalArgs.map!(it=>it.reprTree).array, name, res.to!string);
+				if (tree.name.chompPrefix("DiceExpr.") == "DotCall")
+					res.reprTree = Repr(evalArgs.map!(it=>it.reprTree).array, name, res.to!string, ReprOpt.dotCall);
+				else
+					res.reprTree = Repr(evalArgs.map!(it=>it.reprTree).array, name, res.to!string);
 				return res;
 			}
 			// fall back to builtins
@@ -290,7 +293,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		
 		case "Parens":
 			auto base = eval(tree.children[0], context);
-			base.reprTree = base.reprTree; // FIXME?
+			base.reprTree = base.reprTree; // not sure this is great but it works
 			return base;
 		
 		case "List":
