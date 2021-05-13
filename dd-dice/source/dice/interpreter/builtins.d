@@ -46,6 +46,12 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 		case "filter":
 			res = fFilter(context, args);
 			break;
+		case "any":
+			res = fAny(context, args);
+			break;
+		case "all":
+			res = fAll(context, args);
+			break;
 		
 		
 		case "max":
@@ -64,6 +70,10 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 			break;
 		case "rsort":
 			res = fSort!"a.reduced.value.get!long > b.reduced.value.get!long"(context, args);
+			break;
+		
+		case "case": // kinda meta
+			res = fCase(context, args);
 			break;
 		
 		
@@ -198,7 +208,14 @@ ExprResult fFilter(Context context, ExprResult[] args)
 	return autoBuildList(results);
 }
 
-
+ExprResult fAny(Context context, ExprResult[] args)
+{
+	throw new EvalException("any: not implemented");
+}
+ExprResult fAll(Context context, ExprResult[] args)
+{
+	throw new EvalException("all: not implemented");
+}
 
 
 
@@ -212,6 +229,12 @@ ExprResult fMax(alias predicate)(Context context, ExprResult[] args)
 	return args.sort!(predicate)[0];
 }
 
+
+
+ExprResult fIn(Context context, ExprResult[] args)
+{
+	throw new EvalException("in: not implemented");
+}
 
 ExprResult fGet(Context context, ExprResult[] args)
 {
@@ -285,3 +308,18 @@ ExprResult fSort(alias predicate)(Context context, ExprResult[] args)
 		return new NumList(args[0].value.get!(ExprResult[]).sort!(predicate).array);
 }
 
+
+ExprResult fCase(Context context, ExprResult[] args)
+{
+	// 1d20.case([[1,2,3], 5 ] , 7)
+	auto target = args[0].reduced;
+	auto defaultResult = args[$-1];
+	assert(args[1..$-1].all!(it=>it.isA!List));
+	auto cases = args[1..$-1].map!(it=>it.value.get!(ExprResult[])).array; // [List of matching cases, Expr to return]
+	assert(cases.all!(it=>it[0].isA!List));
+	
+	foreach(c;cases)
+		if (c[0].value.get!(ExprResult[]).canFind(target))
+			return c[1];
+	return defaultResult;
+}

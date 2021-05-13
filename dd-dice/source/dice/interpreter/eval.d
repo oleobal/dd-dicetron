@@ -256,8 +256,9 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			}
 			else if (die.name == "DiceExpr.CustomDie")
 			{
-				auto choices = die.children.map!(x=>x.eval(context).reduced);
-				reprInput ~= Repr("<"~choices.map!(it=>it.toString).join(",")~">");
+				auto customDiceList = die.children[0].eval(context);
+				auto choices = customDiceList.value.get!(ExprResult[]);
+				reprInput ~= customDiceList.reprTree;
 				ExprResult[] dice = generate!(() => choices.choice).takeExactly(noOfDice).array;
 				if (dice.all!(it=>it.isA!Bool))
 					return cast(ExprResult) new BoolList(dice, dice.to!string);
@@ -284,11 +285,29 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			return base;
 		
 		case "Parens":
-		case "BParens":
-			auto base = eval(tree.children[0]);
+			auto base = eval(tree.children[0], context);
 			base.reprTree = base.reprTree; // FIXME?
 			return base;
-			
+		
+		case "List":
+			if (tree.matches.length == 5 && tree.matches[2] == "..")
+			{
+				auto start = tree.children[0].eval(context).reduced.value.get!long;
+				auto end = tree.children[1].eval(context).reduced.value.get!long;
+				ExprResult[] c;
+				if (start<end)
+					for (auto i=start;i<=end;i++)
+						c~= new Num(i, i.to!string);
+				else if (start>end)
+					for (auto i=start;i>=end;i--)
+						c~=new Num(i, i.to!string);
+				else
+					c~= new Num(start, start.to!string);
+				return autoBuildList(c);
+			}
+			ExprResult[] c = tree.children.map!(it=>it.eval(context)).array;
+			return autoBuildList(c);
+		
 		case "Number":
 			assert (tree.matches.length==1);
 			return cast(ExprResult) new Num(tree.matches[0].to!long, tree.matches[0]);

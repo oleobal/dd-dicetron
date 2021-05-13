@@ -40,7 +40,7 @@ Some function use lambdas as predicates:
 
 Custom dice are supported instead of `d<number>`:
 ```
-  $ dd-dice '[film, "board games"] + ["🍕", "🍔", "🥗"]'
+  $ dd-dice 'd[film, "board games"] + d["🍕", "🍔", "🥗"]'
 [board games]+[🍔]: board games, 🍔
 ```
 

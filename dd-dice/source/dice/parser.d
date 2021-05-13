@@ -26,7 +26,7 @@ DiceExpr:
 	Primary    < DotCall / FunCall / MulDie
 	             / Parens / Not / Neg / Pos
 	             / Die / CustomDie / Coin
-	             / Number / String
+	             / Number / List / String
 	             / LambdaDef / Ident
 	Parens     < "(" Expr ")"
 	Not        < "!" Primary
@@ -34,8 +34,9 @@ DiceExpr:
 	Pos        < "+" Primary
 	MulDie     < Primary (Die / CustomDie / Coin)
 	Die        < "d"i Number
-	CustomDie  < "[" Expr ("," Expr )* :(",")? "]"
+	CustomDie  < "d"i List
 	Coin       <- ( "coin"i / "true"i / "false"i ) :"s"?
+	List       < "[" Expr ("," Expr )* :(",")? "]" / "[" Number ".." Number "]"
 	Number     <- ~([0-9]+)
 	
 	DotCall    < Primary "." Ident (

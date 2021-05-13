@@ -1,4 +1,6 @@
-## Supplied functions
+## Built-in functions
+
+These functions are built in the interpeter and always available.
 
 As a reminder, `f(x,y)` is equivalent to `x.f(y)`. In the second case, you don't
 need to write the parentheses if there's nothing in them.
@@ -53,6 +55,17 @@ Return the list with the function applied to each element
 Return the list, but with only elements for which the function returns `true`.
 This can return an empty list.
 
+#### any & all
+
+`Bool any(List, Function)`
+
+Returns `true` if `Function` returns `true` for all elements in `List`
+
+`Bool all(List, Function)`
+
+Returns `true` if `Function` returns `true` for at least one element in `List`
+
+
 ### Plumbing
 
 You probably won't need these.
@@ -85,3 +98,19 @@ Same but returns a sub-list. For instance `[1,2,3,4].get(1,3)` returns `[2,3]`.
 
 Return a the list sorted, smallest element first in the case of `sort` and the
 reverse for `rsort`.
+
+
+#### case
+
+`ExprResult case(ExprResult, [List, ExprResult]..., ExprResult)`
+
+Maybe handier with an example:
+```
+1d20.case(
+	[[1..10], 1],
+	[[11,13,15], 2],
+	3
+)
+```
+This returns `1` if the roll is from 1 to 10, `2` if the roll is 11, 13, or 15, 
+and else 3. 

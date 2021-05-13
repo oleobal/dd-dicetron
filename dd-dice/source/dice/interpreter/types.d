@@ -108,12 +108,21 @@ class NumList : Num, List
 	long maxValue;
 	
 	this() {}
-	this (long[] a) { this(a, genOutputRepr(a)); }
-	this (long[] a, long max) { maxValue = max; this(a); }
-	this (long[] a, string b) { value = a.map!(it=>cast(ExprResult) new Num(it)).array; repr = b; }
-	this (ExprResult[] a) { this(a, genOutputRepr(a)); }
-	this (ExprResult[] a, long max) { maxValue = max; this(a, genOutputRepr(a)); }
-	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!Num)) ; value = a; repr = b; }
+	this (long[] a) { this(a, 0); }
+	this (long[] a, long max) {
+		this(a.map!(it=>cast(ExprResult) new Num(it)).array, max);
+	}
+	
+	this (ExprResult[] a) { this(a, 0); }
+	this (ExprResult[] a, long max) {this(a, 0, genOutputRepr(a));}
+	this (ExprResult[] a, long max, string outputRepr)
+	{
+		assert(a.all!(it=>it.isA!Num));
+		
+		value = a;
+		reprTree = Repr(a.map!(it=>it.reprTree).array, "NumList", outputRepr);
+	}
+	
 	
 	string genOutputRepr(T)(T a)
 	{
@@ -121,8 +130,22 @@ class NumList : Num, List
 		return "["~a.map!(it=>it.to!string).join("+")~"]";
 	}
 	
+	override string toString() const
+	{
+		return reprTree.output;
+	}
+	
 	override ExprResult reduced() {
-		return cast(ExprResult) new Num(value.get!(ExprResult[]).map!(it=>it.value.get!long).sum, repr);
+		
+		long[] val;
+		foreach(e;value.get!(ExprResult[]))
+		{
+			if (e.isA!NumList)
+				val~=e.reduced.value.get!long;
+			else
+				val~=e.value.get!long;
+		}
+		return cast(ExprResult) new Num(val.sum,repr);
 	}
 }
 
@@ -175,7 +198,7 @@ class BoolList : Bool, List
 		return "["~a.map!(it=>it.to!string).join("+")~"]";
 	}
 	
-	override ExprResult reduced() {
+	override ExprResult reduced() { // FIXME
 		auto l = value.get!(ExprResult[]);
 		if (l.length == 1)
 			return cast(ExprResult) new Bool(l[0].value.get!bool, repr);

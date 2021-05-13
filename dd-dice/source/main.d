@@ -23,9 +23,9 @@ Results can be filtered:
   the middle two of four:         4d20.best(3).worst(2)
   the ones above ten:             4d20.filter{it>10}
 
-Custom dice:                      [1,5,7]
-  with words:                     2[pizza, burger, salad]
-  quote non-alphanumeric faces:   ["🍕", "🍔", "🥗", "Not hungry"]
+Custom dice:                      d[1,5,7]
+  with words:                     2d[pizza, burger, salad]
+  quote non-alphanumeric faces:   d["🍕", "🍔", "🥗", "Not hungry"]
 
 Coin flips:                       coin + 4 coins
 `[1..$-1];

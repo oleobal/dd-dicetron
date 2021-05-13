@@ -41,9 +41,12 @@ There are currently:
 
 ### Lists & ints
 
-Lists represent the result of a roll:
+List use the `[]` operator and can hold anything.
+
+However they primarily represent the result of a roll:
  - booleans for coin flips
  - integers for dice
+ - also string or mixed for custom dice
 
 Rolls are "reduced" to the sum of their parts when subject to arithmetic or
 comparisons (a roll of 1 bool is reduced to that bool).
@@ -55,6 +58,9 @@ The reason for preserving the rolls is that some functions
 We could conceivably have two types of lists of numbers, ones that are silently
 reducibles and ones that aren't. But I think it would be very obscure to the
 point of uselessness.
+
+The special syntax `[number..number]` creates a numeric list with that range,
+inclusive.
 
 #### NumList & NumRoll
 
@@ -142,7 +148,7 @@ Then you can replace `2d20.map(x=>x+1)` with `2d20.map{it+1}`.
 
 ### Supplied functions
 
-See [functions](functions.md)
+See [builtins](builtins.md)
 
 ## Arithmetic division
 

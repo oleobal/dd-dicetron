@@ -13,16 +13,22 @@ struct Repr
 	bool isLeaf;
 	bool isRoll=false;
 	string[] leaves;
-	Repr[][] input;
+	Repr[] input;
 	string output;
 	
 	this(string s)
 	{
 		isLeaf=true;
 		leaves=[s];
+		output=s;
 	}
 	this(Repr i, string l)
-	{ this([i], l); }
+	{
+		if (i.isLeaf)
+			this([i], l, l~i.toString);
+		else
+			this([i], l);
+	}
 	this(Repr[] i, string l)
 	{ this(i, l, ""); }
 	
@@ -31,19 +37,14 @@ struct Repr
 	this(Repr[] input, string leaf, string output, bool isRoll)
 	{
 		isLeaf=false;
-		this([input], [leaf], output, isRoll);
+		this(input, [leaf], output, isRoll);
 	}
 	
 	/// for chained stuff like "1 <= 2 <= 3"
-	this(Repr[][] input, string[] leaves, string output, bool isRoll)
+	this(Repr[] input, string[] leaves, string output, bool isRoll)
 	{
-		assert(input.length == leaves.length);
-		
 		if (isRoll)
-		{
-			assert(input.length == 1);
-			assert(input[0].length == 2);
-		}
+			assert(input.length == 2);
 		
 		this.input=input;
 		this.leaves=leaves;
@@ -55,7 +56,7 @@ struct Repr
 	{
 		if (isLeaf)
 			return isRoll;
-		return isRoll || input.any!(it=>it.any!(x=>x.hasRoll));
+		return isRoll || input.any!(it=>it.hasRoll);
 	}
 	
 	string toString() const
@@ -64,7 +65,7 @@ struct Repr
 			return leaves[0];
 		
 		// chained arithmetic (eg 1 > 2 > 3)
-		if (input.length>1)
+		if (leaves.length>1)
 		{
 			string result = "";
 			throw new Exception("To be implemented");
@@ -72,18 +73,31 @@ struct Repr
 		
 		
 		// unitary
-		if (!output && input.length == 1 && input[0].length == 1)
-			return leaves[0]~input[0][0].toString;
+		if (!output && input.length == 1)
+			return leaves[0]~input[0].toString;
 		
 		if (isRoll)
 			// ever exactly two inputs
-			if (!input[0].any!(it=>it.hasRoll))
+			if (!input.any!(it=>it.hasRoll))
 				return output;
 		
 		
 		
 		// regular f(x) case
-		string[] children = input[0].map!(it=>it.toString).array;
-		return leaves[0]~"(\n"~children.join(",\n").indent~"\n)"~" -> "~output;
+		string[] inputs;
+		
+		if (!hasRoll)
+			return output;
+		
+		foreach(i;input)
+		{
+			if (i.hasRoll)
+				inputs~=i.toString;
+			else
+				inputs~=i.output;
+		}
+		
+		
+		return leaves[0]~"(\n"~inputs.join(",\n").indent~"\n)"~" -> "~output;
 	}
 }
