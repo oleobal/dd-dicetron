@@ -179,11 +179,15 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				auto fContext = new Context(context);
 				if (args.length != f.args.length)
 					throw new EvalException("Trying to call %s(%s) with the wrong number (%s) of args".format(name, f.args.join(","), args.length));
+				ExprResult[] evalArgs;
 				for (ulong i=0;i<f.args.length;i++)
 				{
-					fContext[f.args[i]] = eval(args[i]);
+					evalArgs ~= eval(args[i]);
+					fContext[f.args[i]] = evalArgs[$-1];
 				}
-				return eval(f.code, fContext);
+				auto res = eval(f.code, fContext);
+				res.reprTree = Repr(evalArgs.map!(it=>it.reprTree).array, name, res.to!string);
+				return res;
 			}
 			// fall back to builtins
 			return callFunction(

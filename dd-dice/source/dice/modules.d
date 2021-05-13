@@ -1,6 +1,7 @@
 module dice.modules;
 
-import std.json;
+import dyaml;
+
 import std.conv;
 import std.algorithm;
 import std.array;
@@ -9,18 +10,20 @@ import dice.parser;
 import dice.interpreter.types;
 import dice.interpreter.context;
 
-Context loadModule(string jsonModule)
+Context loadModule(string yamlModule)
 {
-	JSONValue mod = parseJSON(jsonModule);
-	auto c = new Context();
 	
-	foreach(f;mod["functions"].array)
+	auto c = new Context();
+	Node mod = Loader.fromString(yamlModule).load();
+	
+	foreach(Node f;mod["functions"])
 	{
-		auto args = f["args"].array.map!(it=>it.str).array;
-		auto code = f["code"].str;
+		auto name = f["name"].as!string;
+		auto args = f["args"].sequence!string.array;
+		auto code = f["code"].as!string;
 		auto parsedCode = parse(code);
-		auto r = cast(ExprResult) new Function(args, parsedCode, code);
-		c[f["name"].str] = r;
+		auto r = cast(ExprResult) new Function(args, parsedCode, name);
+		c[name] = r;
 	}
 	
 	return c;
