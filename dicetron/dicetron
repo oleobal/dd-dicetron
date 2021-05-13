@@ -2,123 +2,20 @@
 import discord
 import os
 import subprocess
-from collections import deque
 from struct import pack
 import re
-import json
+
+from lib.history import History
+from lib.data import *
+from lib.dice import *
+from lib.util import *
 
 history_command_regex = re.compile(r"!(!|[0-9]+)")
 
 
-def get_data_dir():
-    path = os.environ.get("DD_DATA_DIR", "")
-    if not path:
-        path = os.path.join(os.path.dirname(__file__), ".dd-data")
-    if not os.path.isdir(path):
-        os.makedirs(path, exist_ok=True)
-    return path
-
-
-history = {}
-
-
-def add_history_item(ident, item):
-    if ident not in history:
-        history[ident] = deque(maxlen=10)
-    history[ident].appendleft(item)
-
-
-def get_history_item(ident, index):
-    return history.get(ident, [])[index]
-
-
-def get_pretty_history(ident):
-    h = history.get(ident, [])
-    msg = ""
-    for i in reversed(range(len(h))):
-        msg += f"{i:>2} {h[i]}\n"
-    return msg
-
-
-# copy of Kotlin's trimIndent
-def trim_indent(s: str) -> str:
-    source = s.splitlines()
-    while source[0] == "":
-        source = source[1:]
-    while source[-1] == "":
-        source = source[:-1]
-    leading = ""
-    for i in range(len(source[0])):
-        if source[0][i].isspace():
-            leading += source[0][i]
-        else:
-            break
-    source = [s[len(leading) :] for s in source]
-    # while source[0] == "":
-    #    source=source[1:]
-    # while source[-1] == "":
-    #    source=source[:-1]
-    return "\n".join(source)
-
-
+history = History()
 prefixes = {}
 global_prefix = "!dddt"
-
-
-def load_prefixes():
-    path = os.path.join(get_data_dir(), "servers")
-    if not os.path.isdir(path):
-        return {}
-    prefixes = {}
-    _, _, files = next(os.walk(path))
-    for name in files:
-        if name.endswith((".json")):
-            p = os.path.join(path, name)
-            with open(p) as f:
-                try:
-                    t = json.load(f)
-                    prefixes[int(name[: -len(".json")], base=16)] = t["prefix"]
-                except JSONDecodeError as e:
-                    print(f"Error decoding {p}: {e}")
-                    pass
-    return prefixes
-
-
-def save_prefixes(prefixes: dict, only=None):
-    path = os.path.join(get_data_dir(), "servers")
-    if not os.path.isdir(path):
-        os.makedirs(path, exist_ok=True)
-    if only and only in prefixes:
-        with open(os.path.join(path, ("%x" % only) + ".json"), "w") as f:
-            json.dump({"prefix": prefixes[only]}, f)
-    else:
-        for k, v in prefixes:
-            with open(os.path.join(path, ("%x" % k) + ".json"), "w") as f:
-                json.dump({"prefix": v}, f)
-
-
-def get_dice_help():
-    p = subprocess.run([os.environ["DD_DICE_PATH"], "--help"], capture_output=True)
-    if p.returncode == 0:
-        return p.stdout.decode("utf-8")
-    else:
-        return "Error"
-
-
-def roll_dice(expr) -> tuple[bool, str]:
-    p = subprocess.run(
-        [os.environ["DD_DICE_PATH"], "--json", expr], capture_output=True
-    )
-    if p.returncode == 0:
-        result = json.loads(p.stdout.decode("utf-8"))
-        if not result.get("successful", True) :
-            return (False, result.get("error", ""))
-        repres = result.get("repr", "")
-        if len(repres) > 100:
-            repres = "[too long]"
-        return (True, f"`{repres}`: **{result.get('output', '')}**")
-    else:
-        return (False, "Error")
 
 
 def decide_answer_message(message, global_prefix: str, prefixes: dict):
@@ -144,28 +41,6 @@ def decide_answer_message(message, global_prefix: str, prefixes: dict):
     return False
 
 
-def usage_help(guild_id=None) -> str:
-    prefix = prefixes.get(guild_id, global_prefix)
-    return (
-        trim_indent(
-            f"""
-            Prefix all commands with `{prefix}` (eg `{prefix} 1d20`)
-            ```
-            """
-        )
-        + get_dice_help()
-        + trim_indent(
-            """
-            
-            Comments:                         2d4+1 # Great axe damage
-            List last rolls:                  history
-            Change prefix:                    prefix
-            ``` _Source & doc at https://github.com/oleobal/dd-dicetron_
-            """
-        )
-    )
-
-
 def set_guild_prefix(guild: int, prefix: str):
     prefixes[guild] = prefix
     save_prefixes(prefixes, only=guild)
@@ -180,8 +55,10 @@ client = discord.Client(
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
 
+
 def reply(message, content):
     return message.channel.send(content, reference=message, mention_author=False)
+
 
 @client.event
 async def on_message(message):
@@ -195,7 +72,12 @@ async def on_message(message):
             message.channel.id,
         )  # not optimal but close enough
         if command.strip().casefold() == "help":
-            await reply(message, usage_help(message.guild.id if message.guild else None))
+            await reply(
+                message,
+                usage_help(
+                    global_prefix, prefixes, message.guild.id if message.guild else None
+                ),
+            )
             return
         elif command.strip().casefold().startswith("prefix"):
             if not message.guild:
@@ -204,19 +86,21 @@ async def on_message(message):
             if len(words) == 1:
                 prefix = prefixes.get(message.guild.id, global_prefix)
                 if message.guild.id in prefixes:
-                    await reply(message,
-                        f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`"
+                    await reply(
+                        message,
+                        f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`",
                     )
                 else:
-                    await reply(message,
-                        f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`"
+                    await reply(
+                        message,
+                        f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`",
                     )
                 return
             set_guild_prefix(message.guild.id, words[1])
             await reply(message, f"Prefix updated to `{words[1]}`")
             return
         elif command.strip().casefold() == "history":
-            h = get_pretty_history(author_id)
+            h = history.get_pretty_history(author_id)
             if h:
                 msg = f"History for {message.author.display_name}:\n```\n{h}\n```_(`!!` or `!<index>` to use)_"
             else:
@@ -229,7 +113,7 @@ async def on_message(message):
             else:
                 index = int(match.group(1))
             try:
-                cmd_from_history = get_history_item(author_id, index)
+                cmd_from_history = history.get_item(author_id, index)
             except IndexError:
                 await reply(message, f":warning: No history item no.{index}")
                 return
@@ -246,7 +130,7 @@ async def on_message(message):
 
         if went_fine:
             if not cmd_from_history:
-                add_history_item(author_id, command)
+                history.add_item(author_id, command)
         else:
             response = ":warning: " + response
 
