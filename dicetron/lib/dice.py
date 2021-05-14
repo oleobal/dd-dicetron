@@ -13,9 +13,13 @@ def get_dice_help():
         return "Error"
 
 
-def roll_dice(expr) -> tuple[bool, str]:
+def roll_dice(expr:str, available_modules:dict, enabled_modules:list) -> tuple[bool, str]:
+    modules_cmd=[]
+    for m in enabled_modules:
+        modules_cmd+=["--module", available_modules[m]["file"]]
+    
     p = subprocess.run(
-        [os.environ["DD_DICE_PATH"], "--json", expr], capture_output=True
+        [os.environ["DD_DICE_PATH"], "--json", expr]+modules_cmd, capture_output=True
     )
     if p.returncode == 0:
         result = json.loads(p.stdout.decode("utf-8"))

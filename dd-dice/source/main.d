@@ -145,6 +145,7 @@ int main(string[] args)
 	{
 		if (jsonOutput)
 		{
+			machineResult["successful"] = false;
 			machineResult["error"] = e.msg;
 			machineResult.writeln;
 			return 0;

@@ -8,4 +8,3 @@ def get_data_dir():
     if not os.path.isdir(path):
         os.makedirs(path, exist_ok=True)
     return path
-

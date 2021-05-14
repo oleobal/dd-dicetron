@@ -92,6 +92,9 @@ a Docker image. Run it with `--env DD_DISCORD_API_TOKEN=<..>`.
 For persistence, set the `DD_DATA_DIR` variable and mount a volume or bind mount
 a folder there.
 
+Also of interest, `DD_MODULES_PATH` tells Dicetron where to look for available
+modules. However, the image is packaged with a few by default already.
+
 Example docker-compose configuration:
 ```
 services:

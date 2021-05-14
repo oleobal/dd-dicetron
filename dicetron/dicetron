@@ -15,9 +15,10 @@ history_command_regex = re.compile(r"!(!|[0-9]+)")
 
 
 history = History()
-available_modules=[]
+available_modules = {}
 prefixes = {}
 global_prefix = "!dddt"
+modules = {}
 
 
 def decide_answer_message(message, global_prefix: str, prefixes: dict):
@@ -45,7 +46,21 @@ def decide_answer_message(message, global_prefix: str, prefixes: dict):
 
 def set_guild_prefix(guild: int, prefix: str):
     prefixes[guild] = prefix
-    save_prefixes(prefixes, only=guild)
+    save_prefixes(prefixes, for_guild=guild)
+
+
+def enable_module(guild: int, module_id: str):
+    if guild in modules:
+        modules[guild].append(module_id)
+    else:
+        modules[guild] = [module_id]
+    save_modules(modules, for_guild=guild)
+
+
+def disable_module(guild: int, module_id: str):
+    if guild in modules:
+        modules[guild].remove(module_id)
+    save_modules(modules, for_guild=guild)
 
 
 client = discord.Client(
@@ -82,7 +97,7 @@ async def on_message(message):
                 ),
             )
             return
-        
+
         elif command.strip().casefold().startswith("prefix"):
             if not message.guild:
                 return
@@ -102,31 +117,63 @@ async def on_message(message):
             set_guild_prefix(message.guild.id, words[1])
             await reply(message, f"Prefix updated to `{words[1]}`")
             return
-        
+
         elif command.strip().casefold().startswith("module"):
             words = command.strip().casefold().split()
             if len(words) == 1:
                 if len(available_modules) == 0:
                     await reply(message, "No modules available for this server")
                     return
-                row="{:<10} {}\n"
-                msg=row.format("id", "name")
-                for m in available_modules:
-                    msg+=row.format(m["id"], m["name"])
-                await reply(message,
-                trim_indent(f"""
-                Available modules:
-                ```""")
-                +msg
-                +trim_indent(f"""
-                ```
-                Load one with `{prefix} module load <id>`
-                """))
+                row = "{:<2} {:<10} {}\n"
+                msg = row.format("On", "ID", "Name")
+                for i, m in available_modules.items():
+                    msg += row.format(
+                        "✓"
+                        if (
+                            message.guild.id in modules
+                            and i in modules[message.guild.id]
+                        )
+                        else "",
+                        i,
+                        m["name"],
+                    )
+                await reply(
+                    message,
+                    "Available modules:\n```"
+                    + msg
+                    + f"``` Use one with `{prefix} module enable <id>`",
+                )
                 return
-            else if len(words) == 3:
-                
-            
-            
+            elif len(words) == 3:
+                if words[2] not in available_modules:
+                    await reply(message, "Unknown module: " + words[2])
+                    return
+                if words[1] == "enable":
+                    enable_module(message.guild.id, words[2])
+                    await reply(
+                        message,
+                        "Module enabled: " + available_modules[words[2]]["name"],
+                    )
+                    return
+                elif words[1] == "disable":
+                    try:
+                        disable_module(message.guild.id, words[2])
+                        await reply(
+                            message,
+                            "Module disabled: " + available_modules[words[2]]["name"],
+                        )
+                    except ValueError:
+                        await reply(
+                            message,
+                            "Module wasn't enabled: "
+                            + available_modules[words[2]]["name"],
+                        )
+                    return
+                else:
+                    await reply(message, "Unknown command: " + " ".join(words[1:]))
+                    return
+            return
+
         elif command.strip().casefold() == "history":
             h = history.get_pretty_history(author_id)
             if h:
@@ -146,12 +193,11 @@ async def on_message(message):
                 await reply(message, f":warning: No history item no.{index}")
                 return
 
-
         if cmd_from_history:
             dice_expr, *comment = cmd_from_history.split("#", maxsplit=1)
         else:
             dice_expr, *comment = command.split("#", maxsplit=1)
-        went_fine, response = roll_dice(dice_expr)
+        went_fine, response = roll_dice(dice_expr, available_modules, modules.get(message.guild.id, []))
 
         if cmd_from_history and command.strip() != "!!":
             response = "`" + cmd_from_history.strip() + "` " + response
@@ -173,7 +219,9 @@ def main():
     global prefixes
     prefixes = load_prefixes()
     global available_modules
-    available_modules = list_available_modules()
+    available_modules = get_available_modules()
+    global modules
+    modules = load_modules()
 
     client.run(os.environ["DD_DISCORD_API_TOKEN"])
 
