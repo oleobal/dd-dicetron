@@ -13,7 +13,7 @@ def enable_module(context, guild: int, module_id: str):
     if guild in context.modules:
         context.modules[guild].append(module_id)
     else:
-        modules[guild] = [module_id]
+        context.modules[guild] = [module_id]
     mod.save_modules(context.modules, for_guild=guild)
 
 
@@ -55,7 +55,7 @@ def cmd_prefix(context, command, prefix, author, channel, guild) -> str:
             return f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`"
         else:
             return f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`"
-    set_guild_prefix(guild.id, words[0])
+    set_guild_prefix(context, guild.id, words[0])
     return f"Prefix updated to `{words[0]}`"
 
 
@@ -81,14 +81,14 @@ def cmd_module(context, command, prefix, author, channel, guild) -> str:
         )
 
     elif len(words) == 2:
-        if words[0] not in context.available_modules:
+        if words[1] not in context.available_modules:
             return "Unknown module: " + words[1]
         if words[0] == "enable":
-            enable_module(guild.id, words[1])
+            enable_module(context, guild.id, words[1])
             return "Module enabled: " + context.available_modules[words[1]]["name"]
         elif words[0] == "disable":
             try:
-                disable_module(guild.id, words[1])
+                disable_module(context, guild.id, words[1])
                 return "Module disabled: " + context.available_modules[words[1]]["name"]
             except ValueError:
                 return (

@@ -30,13 +30,13 @@ def load_prefixes(for_guild=None) -> dict:
     return prefixes
 
 
-def save_prefixes(prefixes: dict, only=None):
+def save_prefixes(prefixes: dict, for_guild=None):
     path = os.path.join(data.get_data_dir(), "prefixes")
     if not os.path.isdir(path):
         os.makedirs(path, exist_ok=True)
-    if only and only in prefixes:
-        with open(os.path.join(path, ("%x" % only) + ".json"), "w") as f:
-            json.dump(prefixes[only], f)
+    if for_guild and for_guild in prefixes:
+        with open(os.path.join(path, ("%x" % for_guild) + ".json"), "w") as f:
+            json.dump(prefixes[for_guild], f)
     else:
         for k, v in prefixes:
             with open(os.path.join(path, ("%x" % k) + ".json"), "w") as f:
