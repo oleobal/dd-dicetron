@@ -7,33 +7,37 @@ import std.range;
 import std.conv;
 import std.string;
 
-string indent(string s, size_t n=1)
+string indent(string s, size_t n=1, char indentator=' ')
 {
-	auto i = ' '.repeat(n).to!string;
+	assert(n>=1);
+	auto i = indentator~' '.repeat(n-1).to!string;
 	return i~s.replace("\n", "\n"~i);
 }
 
-string prettyList(string[] inputs, string separator=",", ulong limit=50)
+string prettyList(string[] inputs, bool explain=false, string separator=",")
 {
 	string res;
-	foreach(i;inputs)
+	for(ulong i=0;i<inputs.length;i++)
 	{
-		if (i.length<limit)
-			res~=i~",";
-		else
-			res~="\n"~i~",\n";
+		res~=inputs[i];
+		if (i<inputs.length-1)
+		{
+			res~=separator;
+			if (explain)
+				res~="\n";
+		}
 	}
-	if(res[$-1] == ',') res=res[0..$-1];
-	if(res[$-2..$] == ",\n") res=res[0..$-2];
 	return res;
 }
 
 
 enum ReprOpt {
 	roll,
+	coinToss,
 	list,
 	parens,
 	arithmetic,
+	comparison,
 	dotCall
 }
 
@@ -43,9 +47,11 @@ struct Repr
 	bool isLeaf;
 	
 	bool isRoll;
+	bool isCoinToss;
 	bool isList;
 	bool isParens;
 	bool isArithmetic;
+	bool isComparison;
 	bool isDotCall;
 	
 	string[] leaves;
@@ -58,6 +64,11 @@ struct Repr
 		{
 			if      (o==ReprOpt.roll)
 				isRoll=true;
+			else if (o==ReprOpt.coinToss)
+			{
+				isCoinToss=true;
+				assert(leaves.length == 1 && input.length < 2);
+			}
 			else if (o==ReprOpt.list)
 				isList=true;
 			else if (o==ReprOpt.parens)
@@ -66,6 +77,11 @@ struct Repr
 			{
 				isArithmetic=true;
 				assert(leaves.length == 1 && input.length < 3);
+			}
+			else if (o==ReprOpt.comparison)
+			{
+				isComparison=true;
+				assert(leaves.length == input.length-1);
 			}
 			else if (o==ReprOpt.dotCall)
 			{
@@ -143,29 +159,69 @@ struct Repr
 			return leaves[0];
 		
 		// chained arithmetic (eg 1 > 2 > 3)
-		if (leaves.length>1)
-			throw new Exception("To be implemented");
+		// FIXME pretty sure arithmetic and comparison can be merged
+		if (isComparison)
+		{
+			string res = [input[0].toString(explain)].prettyList(explain);
+			if (explain) res~="\n";
+			for (ulong i; i<input.length && i<leaves.length; i++)
+			{
+				if (explain)
+					res~=leaves[i].indent~"\n";
+				else
+					res~=leaves[i];
+				res~=[input[i+1].toString(explain)].prettyList(explain);
+				if (explain) res~="\n";
+			}
+			if (explain)
+				res~="->"~output;
+			if (res.canFind("\n"))
+				res=res.indent(1,'|');
+			return res;
+		}
 		
 		if (isRoll && !input.any!(it=>it.hasRoll) && !explain)
 			return output;
+		
+		if (isCoinToss)
+		{
+			string res = [input[0].toString(explain)].prettyList(explain);
+			if (res == "1")
+				res="";
+			if (explain && res!="")
+				res~="\n";
+			res~=leaves[0];
+			if (explain)
+				res~="->"~output;
+			return res;
+		}
 		
 		if (isArithmetic)
 		{
 			string res;
 			if (input.length == 1)
 			{
-				auto a = input[0].toString(explain);
+				auto a = [input[0].toString(explain)].prettyList(explain);
 				res = leaves[0]~a;
 			}
 			else
 			{
-				auto a = input[0].toString(explain);
-				auto b = input[1].toString(explain);
-				res = a~leaves[0]~b;
+				auto a = [input[0].toString(explain)].prettyList(explain);
+				if (isRoll && a == "1") // seems like a dangerous special case but whatever
+					a = "";
+				if (explain && a.length>1)
+					a~="\n";
+				auto b = [input[1].toString(explain)].prettyList(explain);
+				if (a.canFind("\n"))
+					res = a~leaves[0].indent~"\n"~b~"\n";
+				else
+					res = a~leaves[0]~b;
 			}
 			
 			if (explain)
-				res~="->"~output~"\n";
+				res~="->"~output;
+			if (res.canFind("\n"))
+				res=res.indent(1,'|');
 			
 			return res;
 		}
@@ -173,20 +229,20 @@ struct Repr
 		if (isParens)
 		{
 			string[] inputs = input.map!(it=>it.toString(explain)).array;
-			string res = prettyList(inputs);
+			string res = prettyList(inputs, explain);
 			if (res.canFind("\n"))
 				res = "(\n"~res.strip.indent~"\n)";
 			else
 				res = "("~res~")";
 			if (explain)
-				res~="->"~output~"\n";
+				res~="->"~output;
 			return res;
 		}
 		
 		if (isList)
 		{
 			string[] inputs = input.map!(it=>it.toString(explain)).array;
-			string res = prettyList(inputs);
+			string res = prettyList(inputs, explain);
 			if (res.canFind("\n"))
 				return "[\n"~res.strip.indent~"\n]";
 			return "["~res~"]";
@@ -202,9 +258,11 @@ struct Repr
 		if (isDotCall)
 		{
 			string res = inputs[0];
+			if (explain)
+				res~="\n";
 			string otherArgs;
 			if (inputs.length>1)
-				otherArgs=prettyList(inputs[1..$]);
+				otherArgs=prettyList(inputs[1..$], explain);
 			res~="."~leaves[0];
 			if (otherArgs)
 			{
@@ -215,18 +273,18 @@ struct Repr
 				
 			}
 			if (explain)
-				res~="->"~output~"\n";
+				res~="->"~output;
 			return res;
 		}
 		
-		auto args = inputs.prettyList;
+		auto args = inputs.prettyList(explain);
 		string res;
 		if (args.canFind("\n"))
 			res = leaves[0]~"(\n"~args.strip.indent~"\n)";
 		else
 			res = leaves[0]~"("~args~")";
 		if (explain)
-			res~="->"~output~"\n";
+			res~="->"~output;
 		return res;
 	}
 }

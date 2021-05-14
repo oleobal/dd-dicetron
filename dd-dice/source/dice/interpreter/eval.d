@@ -46,6 +46,8 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "Comp":
 			auto prevOperand = tree.children[0].eval(context).reduced;
 			auto result = cast(ExprResult) new Bool(true, prevOperand.repr);
+			Repr[] predecessors = [prevOperand.reprTree];
+			string[] leaves;
 			foreach(c;tree.children[1..$])
 			{
 				// Python-style chained comparisons https://docs.python.org/3.8/reference/expressions.html#comparisons
@@ -89,9 +91,11 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					
 				}
 				result.value = result.value.get!bool && thisOpResult;
-				result.repr = result.repr ~ c.matches[0] ~ secondOperand.repr;
+				predecessors~=secondOperand.reprTree;
+				leaves~=c.matches[0];
 				prevOperand = secondOperand;
 			}
+			result.reprTree = Repr(predecessors, leaves, result.toString, ReprOpt.comparison);
 			return result;
 		
 		
@@ -119,7 +123,10 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 						base.value=base.value~cfactor.value;
 					}
 					else if (base.isA!Num && cfactor.isA!Num)
-						base.value=base.value+cfactor.value;
+					{
+						base = new Num(base.value.coerce!long, base.reprTree);
+						base.value=base.value+cfactor.value.coerce!long;
+					}
 					else
 						throw new Exception("Can't add terms "~base.repr~" and "~cfactor.repr);
 					base.reprTree=Repr([base.reprTree, cfactor.reprTree], "+", base.to!string, ReprOpt.arithmetic);
@@ -248,18 +255,15 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 				switch (die.matches[0])
 				{
 					case "coin":
-						coins = flipCoins(noOfDice);
-						break;
+						return cast(ExprResult) new BoolRoll(flipCoins(noOfDice), die.matches[0], reprInput);
+					// kinda weird solution
 					case "true":
-						coins = flipCoins(noOfDice, 1);
-						break;
+						return cast(ExprResult) new BoolRoll(flipCoins(noOfDice, 1), die.matches[0], reprInput);
 					case "false":
-						coins = flipCoins(noOfDice, 0);
-						break;
+						return cast(ExprResult) new BoolRoll(flipCoins(noOfDice, 0), die.matches[0], reprInput);
 					default:
 						throw new EvalException(`Can't flip coin `~die.matches[0]);
 				}
-				return cast(ExprResult) new BoolList(coins, "["~coins.map!(x=>x?"T":"F").join("+")~"]");
 			}
 			else if (die.name == "DiceExpr.CustomDie")
 			{

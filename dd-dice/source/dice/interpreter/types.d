@@ -63,11 +63,11 @@ abstract class ExprResult {
 	{
 		if (value.type == typeid(ExprResult[]))
 			return value.get!(ExprResult[]).map!(it=>it.to!string).join(",");
-		else if ( value.type == typeid(long))
+		else if (value.type == typeid(long))
 			return value.get!long.to!string;
-		else if ( value.type == typeid(bool))
-			return value.get!bool.to!string;
-		else if ( value.type == typeid(string))
+		else if (value.type == typeid(bool))
+			return value.get!bool?"T":"F";
+		else if (value.type == typeid(string))
 			return value.get!string;
 		else
 			return value.to!string;
@@ -185,6 +185,7 @@ class Bool : Num
 	this (bool a, string b) { this(a, Repr(b)); }
 	this(bool a, Repr b) { value = a; reprTree = b;}
 	override ExprResult reduced() {return cast(ExprResult) new Bool(value.get!bool, reprTree);}
+	
 }
 class BoolList : Bool, List
 {
@@ -192,13 +193,13 @@ class BoolList : Bool, List
 	this (bool[] a) { this(a, genOutputRepr(a)); }
 	this (bool[] a, string b) { this(a.map!(it=>cast(ExprResult) new Bool(it)).array, b); }
 	this (ExprResult[] a) { this(a, genOutputRepr(a)); }
-	this (ExprResult[] a, string b) { this(a, Repr(b));}
-	
-	this(ExprResult[] a, Repr b) {
+	this (ExprResult[] a, string outputRepr)
+	{
 		assert(a.all!(it=>it.isA!Bool));
 		value = a;
-		reprTree = b;
+		reprTree = Repr(a.map!(it=>it.reprTree).array, "BoolList", outputRepr, ReprOpt.list);
 	}
+	override string toString() const { return reprTree.output; }
 	
 	string genOutputRepr(T)(T a)
 	{
@@ -206,14 +207,29 @@ class BoolList : Bool, List
 		return "["~a.map!(it=>it.to!string).join(",")~"]";
 	}
 	
-	override ExprResult reduced() { // FIXME
+	override ExprResult reduced() { 
 		auto l = value.get!(ExprResult[]);
 		if (l.length == 1)
-			return cast(ExprResult) new Bool(l[0].value.get!bool, repr);
+			return cast(ExprResult) new Bool(l[0].value.get!bool, reprTree);
 		
-		return cast(ExprResult) new Num(l.map!(it=>it.value.get!bool).sum, repr);
+		return cast(ExprResult) new Num(l.map!(it=>it.value.get!bool).sum, reprTree);
 	}
 }
+class BoolRoll : BoolList, Roll
+{
+	this(bool[] a, string type, Repr[] predecessor)
+	{
+		this(a.map!(it=>cast(ExprResult) new Bool(it)).array, type, predecessor);
+	}
+	this (ExprResult[] a, string type, Repr[] predecessor)
+	{
+		assert(a.all!(it=>it.isA!Bool));
+		value = a;
+		reprTree = Repr(predecessor, type, genOutputRepr(a), ReprOpt.coinToss, ReprOpt.roll);
+	}
+}
+
+
 class String : ExprResult
 {
 	this() {}
