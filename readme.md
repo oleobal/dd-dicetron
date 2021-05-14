@@ -54,6 +54,7 @@ These are on top of the features from `dd-dice`:
  - comments
  - per-user per-channel history of recent commands
  - persistent per-server prefix change.
+ - persistent per-server module management
 
 
 ## Development
@@ -76,7 +77,7 @@ Read [my notes about the language](/doc/language.md).
    - `DD_DICE_PATH` to the dd-dice executable
    - `DD_DISCORD_API_TOKEN` to your API key
  - `./dicetron` runs the program
- - that file is the only source
+ - the rest of the source is in `lib/`
 
 ## Production usage
 

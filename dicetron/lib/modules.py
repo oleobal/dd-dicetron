@@ -12,7 +12,7 @@ def get_available_modules() -> dict:
     modules = json.load(open(os.path.join(path, "modules.json")))
     for k in modules:
         fullpath = os.path.join(path, modules[k]["file"])
-        assert(os.path.exists(fullpath))
+        assert os.path.exists(fullpath)
         modules[k]["file"] = fullpath
 
     return modules

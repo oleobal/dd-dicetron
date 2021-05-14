@@ -26,12 +26,13 @@ COPY --from=build /tmp/dd-dice /
 RUN apt-get -qq update && apt-get -qq install python3 python3-pip
 
 COPY dicetron/dicetron /
+COPY dicetron/lib /lib
 COPY dicetron/requirements.txt /
 RUN python3 -m pip install -r /requirements.txt
 
 
 RUN mkdir /dd-modules && chown nobody /dd-modules
-COPY dd-dice/modules/* /dd-modules/
+COPY dd-dice/modules /dd-modules
 
 RUN mkdir /dd-data && chown nobody /dd-data
 USER nobody

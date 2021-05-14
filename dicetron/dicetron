@@ -10,61 +10,96 @@ from lib.modules import *
 from lib.prefixes import *
 from lib.dice import *
 from lib.util import *
+from lib.commands import *
 
-history_command_regex = re.compile(r"!(!|[0-9]+)")
+
+class GlobalContext:
+    def __init__(self):
+        self.history_command_regex = re.compile(r"^\s*!(!|[0-9]+)\s*$")
+        self.remove_backticks_regex = re.compile(
+            r"```(.*?)```|`(.*?)`", flags=re.DOTALL
+        )
+        self.history = History()
+        self.available_modules = {}
+        self.prefixes = {}
+        self.global_prefix = "!dddt"
+        self.modules = {}
 
 
-history = History()
-available_modules = {}
-prefixes = {}
-global_prefix = "!dddt"
-modules = {}
+context = GlobalContext()
 
 
 def decide_answer_message(message, global_prefix: str, prefixes: dict):
     contents = message.content.split(maxsplit=1)
     first_word = contents[0]
-    if len(contents) == 1:
-        command = ""
-    else:
-        command = contents[1].strip()
-        if command[:3] == command[-3:] == "```":
-            command = command[3:-3]
-        elif command[0] == command[-1] == "`":
-            command = command[1:-1]
-
-    if first_word == global_prefix or (
-        message.guild
-        and message.guild.id in prefixes
-        and first_word == prefixes[message.guild.id]
+    if not (
+        first_word == global_prefix
+        or (
+            message.guild
+            and message.guild.id in prefixes
+            and first_word == prefixes[message.guild.id]
+        )
     ):
-        if command == "":
-            return "help"
-        return command
-    return False
+        return False
 
-
-def set_guild_prefix(guild: int, prefix: str):
-    prefixes[guild] = prefix
-    save_prefixes(prefixes, for_guild=guild)
-
-
-def enable_module(guild: int, module_id: str):
-    if guild in modules:
-        modules[guild].append(module_id)
+    if len(contents) == 1:
+        return "help"
     else:
-        modules[guild] = [module_id]
-    save_modules(modules, for_guild=guild)
+        return re.sub(context.remove_backticks_regex, r"\1\2", contents[1].strip())
 
 
-def disable_module(guild: int, module_id: str):
-    if guild in modules:
-        modules[guild].remove(module_id)
-    save_modules(modules, for_guild=guild)
+def dispatch_command(command, prefix, author, channel, guild) -> str:
+    def split(cmd):
+        contents = cmd.split(maxsplit=1)
+        if len(contents) == 1:
+            contents.append("")
+        return contents
+
+    first_word, rest = split(command)
+
+    if first_word in ["help", "prefix", "module", "history"]:
+        return globals()["cmd_" + first_word](
+            context, rest, prefix, author, channel, guild
+        )
+
+    explain = False
+    if first_word == "explain":
+        explain = True
+        command = rest
+        first_word, rest = split(command)
+
+    author_id = b"%x%x" % (author.id, channel.id)
+    original_cmd = None
+    if match := context.history_command_regex.match(command):
+        index = 0 if match.group(1) == "!" else int(match.group(1))
+        try:
+            original_cmd = command
+            command = context.history.get_item(author_id, index)
+        except IndexError:
+            return f":warning: No history item no.{index}"
+    dice_expr, *comment = command.strip().split("#", maxsplit=1)
+    went_fine, response = roll_dice(
+        dice_expr,
+        context.available_modules,
+        context.modules.get(guild.id, []),
+        explain,
+    )
+    if original_cmd and original_cmd.strip() != "!!":
+        response = "`" + dice_expr.strip() + "` " + response
+    response = ("_" + comment[0].strip() + "_ " if comment else "") + response
+
+    if went_fine:
+        if not original_cmd:
+            context.history.add_item(author_id, command)
+    else:
+        response = ":warning: " + response
+    return response
 
 
 client = discord.Client(
-    activity=discord.Activity(name=global_prefix, type=discord.ActivityType.listening)
+    activity=discord.Activity(
+        name=context.global_prefix, type=discord.ActivityType.listening
+    )
 )
 
 
@@ -82,146 +117,27 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if command := decide_answer_message(message, global_prefix, prefixes):
-        prefix = prefixes.get(message.guild.id, global_prefix)
+    if command := decide_answer_message(
+        message, context.global_prefix, context.prefixes
+    ):
+        prefix = context.prefixes.get(message.guild.id, context.global_prefix)
         cmd_from_history = None
-        author_id = b"%x%x" % (
-            message.author.id,
-            message.channel.id,
-        )  # not optimal but close enough
-        if command.strip().casefold() == "help":
-            await reply(
-                message,
-                usage_help(
-                    global_prefix, prefixes, message.guild.id if message.guild else None
-                ),
-            )
-            return
 
-        elif command.strip().casefold().startswith("prefix"):
-            if not message.guild:
-                return
-            words = command.strip().casefold().split()
-            if len(words) == 1:
-                if message.guild.id in prefixes:
-                    await reply(
-                        message,
-                        f"The current prefix on this server is `{prefix}`. Set it with `{prefix} prefix <prefix>`",
-                    )
-                else:
-                    await reply(
-                        message,
-                        f"No custom prefix on this server. Set it with `{prefix} prefix <prefix>`",
-                    )
-                return
-            set_guild_prefix(message.guild.id, words[1])
-            await reply(message, f"Prefix updated to `{words[1]}`")
-            return
-
-        elif command.strip().casefold().startswith("module"):
-            words = command.strip().casefold().split()
-            if len(words) == 1:
-                if len(available_modules) == 0:
-                    await reply(message, "No modules available for this server")
-                    return
-                row = "{:<2} {:<10} {}\n"
-                msg = row.format("On", "ID", "Name")
-                for i, m in available_modules.items():
-                    msg += row.format(
-                        "✓"
-                        if (
-                            message.guild.id in modules
-                            and i in modules[message.guild.id]
-                        )
-                        else "",
-                        i,
-                        m["name"],
-                    )
-                await reply(
-                    message,
-                    "Available modules:\n```"
-                    + msg
-                    + f"``` Use one with `{prefix} module enable <id>`",
-                )
-                return
-            elif len(words) == 3:
-                if words[2] not in available_modules:
-                    await reply(message, "Unknown module: " + words[2])
-                    return
-                if words[1] == "enable":
-                    enable_module(message.guild.id, words[2])
-                    await reply(
-                        message,
-                        "Module enabled: " + available_modules[words[2]]["name"],
-                    )
-                    return
-                elif words[1] == "disable":
-                    try:
-                        disable_module(message.guild.id, words[2])
-                        await reply(
-                            message,
-                            "Module disabled: " + available_modules[words[2]]["name"],
-                        )
-                    except ValueError:
-                        await reply(
-                            message,
-                            "Module wasn't enabled: "
-                            + available_modules[words[2]]["name"],
-                        )
-                    return
-                else:
-                    await reply(message, "Unknown command: " + " ".join(words[1:]))
-                    return
-            return
-
-        elif command.strip().casefold() == "history":
-            h = history.get_pretty_history(author_id)
-            if h:
-                msg = f"History for {message.author.display_name}:\n```\n{h}\n```_(`!!` or `!<index>` to use)_"
-            else:
-                msg = f"You have no rolling history on this channel"
-            await reply(message, msg)
-            return
-        elif match := history_command_regex.match(command.strip().casefold()):
-            if match.group(1) == "!":
-                index = 0
-            else:
-                index = int(match.group(1))
-            try:
-                cmd_from_history = history.get_item(author_id, index)
-            except IndexError:
-                await reply(message, f":warning: No history item no.{index}")
-                return
-
-        if cmd_from_history:
-            dice_expr, *comment = cmd_from_history.split("#", maxsplit=1)
-        else:
-            dice_expr, *comment = command.split("#", maxsplit=1)
-        went_fine, response = roll_dice(dice_expr, available_modules, modules.get(message.guild.id, []))
-
-        if cmd_from_history and command.strip() != "!!":
-            response = "`" + cmd_from_history.strip() + "` " + response
-        response = ("_" + comment[0].strip() + "_ " if comment else "") + response
-
-        if went_fine:
-            if not cmd_from_history:
-                history.add_item(author_id, command)
-        else:
-            response = ":warning: " + response
-
-        await reply(message, response)
+        await reply(
+            message,
+            dispatch_command(
+                command, prefix, message.author, message.channel, message.guild
+            ),
+        )
 
 
 def main():
     assert "DD_DISCORD_API_TOKEN" in os.environ
     assert "DD_DICE_PATH" in os.environ
 
-    global prefixes
-    prefixes = load_prefixes()
-    global available_modules
-    available_modules = get_available_modules()
-    global modules
-    modules = load_modules()
+    context.prefixes = load_prefixes()
+    context.available_modules = get_available_modules()
+    context.modules = load_modules()
 
     client.run(os.environ["DD_DISCORD_API_TOKEN"])
 
