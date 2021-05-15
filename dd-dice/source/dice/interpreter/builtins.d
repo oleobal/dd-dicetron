@@ -158,17 +158,22 @@ ExprResult fExplode(Context context, ExprResult[] args)
 
 
 
+Function checkListFilteringArgs(string f, ExprResult[] args)
+{
+	if (args.length!=2)
+		throw new EvalException(f~" takes exactly two arguments");
+	if (!args[0].isA!List || args[0].isA!Function)
+		throw new EvalException(f~" takes a list and a lambda (that returns a bool)");
+	Function lambda = cast(Function) args[1];
+	if (lambda.args.length != 1)
+		throw new EvalException("The lambda "~f~" takes must take exactly one argument (list item)");
+	return lambda;
+}
+
 
 ExprResult fMap(Context context, ExprResult[] args)
 {
-	if (args.length!=2)
-		throw new EvalException("map takes exactly two arguments");
-	if (!args[0].isA!List || args[0].isA!Function)
-		throw new EvalException("map takes a list and a lambda");
-	auto lambda = cast(Function) args[1];
-	if (lambda.args.length != 1)
-		throw new EvalException("The lambda map takes must take exactly one argument (list item)");
-	
+	auto lambda = checkListFilteringArgs("map", args);
 	
 	ExprResult[] results;
 	auto lambdaContext = new Context(context);
@@ -183,14 +188,7 @@ ExprResult fMap(Context context, ExprResult[] args)
 
 ExprResult fFilter(Context context, ExprResult[] args)
 {
-	if (args.length!=2)
-		throw new EvalException("filter takes exactly two arguments");
-	if (!args[0].isA!List || args[0].isA!Function)
-		throw new EvalException("filter takes a list and a lambda (that returns a bool)");
-	auto lambda = cast(Function) args[1];
-	if (lambda.args.length != 1)
-		throw new EvalException("The lambda filter takes must take exactly one argument (list item)");
-	
+	auto lambda = checkListFilteringArgs("filter", args);
 	
 	ExprResult[] results;
 	auto lambdaContext = new Context(context);
@@ -211,11 +209,41 @@ ExprResult fFilter(Context context, ExprResult[] args)
 
 ExprResult fAny(Context context, ExprResult[] args)
 {
-	throw new EvalException("any: not implemented");
+	auto lambda = checkListFilteringArgs("any", args);
+	auto result = false;
+	auto lambdaContext = new Context(context);
+	foreach(a;args[0].value.get!(ExprResult[]))
+	{
+		lambdaContext[lambda.args[0]] = a;
+		auto r = eval(lambda.code, lambdaContext);
+		if (r.reduced.isA!Bool)
+			result = result || r.value.get!bool;
+		else
+			throw new EvalException("Lambda "~lambda.repr~" returned a "~typeid(r).to!string~" instead of a bool");
+	}
+	
+	return new Bool(result);
 }
+
 ExprResult fAll(Context context, ExprResult[] args)
 {
-	throw new EvalException("all: not implemented");
+	auto lambda = checkListFilteringArgs("any", args);
+	auto result = true;
+	auto lambdaContext = new Context(context);
+	auto l = args[0].value.get!(ExprResult[]);
+	if (l.length == 0)
+		return new Bool(false);
+	foreach(a;l)
+	{
+		lambdaContext[lambda.args[0]] = a;
+		auto r = eval(lambda.code, lambdaContext);
+		if (r.reduced.isA!Bool)
+			result = result && r.value.get!bool;
+		else
+			throw new EvalException("Lambda "~lambda.repr~" returned a "~typeid(r).to!string~" instead of a bool");
+	}
+	
+	return new Bool(result);
 }
 
 

@@ -88,7 +88,8 @@ Not sure why anyone would but you _can_ use dd-dice on its own, on the terminal.
 ### As a Discord bot
 
 Can be run as in development but it's probably best to run `./build` and get
-a Docker image. Run it with `--env DD_DISCORD_API_TOKEN=<..>`.
+[a Docker image](https://hub.docker.com/r/oleobal/dd-dicetron).
+Set your API token when running: `docker run --env DD_DISCORD_API_TOKEN='<..>' oleobal/dd-dicetron`
 
 For persistence, set the `DD_DATA_DIR` variable and mount a volume or bind mount
 a folder there.
@@ -97,7 +98,7 @@ Also of interest, `DD_MODULES_PATH` tells Dicetron where to look for available
 modules. However, the image is packaged with a few by default already.
 
 Example docker-compose configuration:
-```
+```yaml
 services:
   dd-dicetron:
     image: "oleobal/dd-dicetron"

@@ -76,7 +76,7 @@ def dispatch_command(command, prefix, author, channel, guild) -> str:
             original_cmd = command
             command = context.history.get_item(author_id, index)
         except IndexError:
-            return f":warning: No history item no.{index}"
+            return f":warning: No history item no. {index}"
     dice_expr, *comment = command.strip().split("#", maxsplit=1)
     went_fine, response = roll_dice(
         dice_expr,

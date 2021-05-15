@@ -36,8 +36,10 @@ There are currently:
    - `NumList` which has a `maxValue` (see corresponding section)
      - `NumRoll` which represent a "natural" roll (see corresponding section)
    - `BoolList`
+     - `BoolRoll`
    - `StringList`
-   - `List` is used to mean "any of these" (abstract, can't exist)
+   - `List` is used to mean "any of these" (abstract, can't exist),
+     and `Roll` for the rolls
 
 ### Lists & ints
 

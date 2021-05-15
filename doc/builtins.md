@@ -65,6 +65,7 @@ Returns `true` if `Function` returns `true` for all elements in `List`
 
 Returns `true` if `Function` returns `true` for at least one element in `List`
 
+Both return `false` if the list is empty.
 
 ### Plumbing
 
