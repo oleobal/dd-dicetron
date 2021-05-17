@@ -4,7 +4,8 @@ public import pegged.grammar;
 
 mixin(grammar(`
 DiceExpr:
-	FullExpr   < Expr :EndOfInput
+	FullExpr   < ExprList :EndOfInput
+	ExprList   < Expr ( ";" Expr )* :(";")?
 	Expr       < Comp / Term
 	
 	Comp       < Term (Eq / NEq / Inf / InfEq / Sup / SupEq)+
@@ -17,9 +18,10 @@ DiceExpr:
 	SupEq      < ">=" Term
 	
 	
-	Term       < Factor (Add / Sub)*
+	Term       < Factor (Add / Sub / Cat)*
 	Add        < "+" Factor
 	Sub        < "-" Factor
+	Cat        < "~" Factor
 	Factor     < Primary (Mul / Div)*
 	Mul        < "*" Primary
 	Div        < "/" Primary

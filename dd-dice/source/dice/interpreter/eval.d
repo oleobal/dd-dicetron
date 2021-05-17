@@ -138,6 +138,10 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 					base.value=base.value-cfactor.value;
 					base.reprTree=Repr([base.reprTree, cfactor.reprTree], "-", base.to!string, ReprOpt.arithmetic);
 				}
+				else if (c.name == "DiceExpr.Cat")
+				{
+					throw new EvalException("Concatenation not implemented");
+				}
 				else
 					throw new EvalException("Unhandled factor: "~c.name);
 				
@@ -183,7 +187,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			{
 				auto f = cast(Function) context[name];
 				auto args = tree.children[1..$];
-				auto fContext = new Context(context);
+				auto fContext = new Context(context.global);
 				if (args.length != f.args.length)
 					throw new EvalException("Trying to call %s(%s) with the wrong number (%s) of args".format(name, f.args.join(","), args.length));
 				ExprResult[] evalArgs;
@@ -213,7 +217,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			if (tree.children.length > 1)
 				args = tree.children[0..$-1].map!(a=>a.matches[0]).array;
 			auto repr = args.join(",")~" => "~tree.children[$-1].matches.join();
-			return cast(ExprResult) new Function(args, tree.children[$-1], repr);
+			return cast(ExprResult) new Closure(args, tree.children[$-1], repr, context);
 		
 		
 		case "MulDie":
@@ -251,7 +255,6 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			}
 			else if (die.name == "DiceExpr.Coin")
 			{
-				bool[] coins;
 				switch (die.matches[0])
 				{
 					case "coin":
@@ -339,6 +342,12 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		case "Pos":
 		case "Primary":
 			return tree.children[0].eval(context);
+		
+		case "ExprList":
+			ExprResult e;
+			foreach(c;tree.children)
+				e=c.eval(context);
+			return e;
 		
 		default:
 			throw new EvalException("Unknown case: "~tree.name);

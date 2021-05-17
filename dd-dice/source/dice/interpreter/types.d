@@ -239,7 +239,6 @@ class String : ExprResult
 }
 class StringList : String, List
 {
-	this() {}
 	this (string[] a, string b) { value = a.map!(it=>cast(ExprResult) new String(it)).array; repr = b; }
 	this (ExprResult[] a) { this(a, a.to!string); }
 	this (ExprResult[] a, string b) { assert(a.all!(it=>it.isA!String)) ; value = a; repr = b; }
@@ -247,7 +246,6 @@ class StringList : String, List
 }
 class MixedList : String, List
 {
-	this() {}
 	this (ExprResult[] a) { value = a; repr = a.to!string; }
 	this (ExprResult[] a, string b) { value = a; repr = b; }
 	override ExprResult reduced() {return cast(ExprResult) new MixedList(value.get!(ExprResult[]), repr);}
@@ -257,7 +255,6 @@ class Function : ExprResult
 	string[] args;
 	ParseTree code;
 	
-	this() {}
 	this(string[] args, ParseTree code, string repr)
 	{
 		this.args=args;
@@ -265,9 +262,9 @@ class Function : ExprResult
 		this.repr=repr;
 	}
 	
-	ExprResult call(Context c)
+	ExprResult call(Context arguments)
 	{
-		return eval(code, c);
+		return eval(code, arguments);
 	}
 	
 	override ExprResult reduced()
@@ -296,6 +293,38 @@ class Function : ExprResult
 	}
 	+/
 }
+class Closure : Function
+{
+	Context context;
+	
+	this(string[] args, ParseTree code, string repr, Context context)
+	{
+		this.context=context;
+		super(args, code, repr);
+	}
+	
+	override ExprResult call(Context arguments)
+	{
+		arguments.outer=context;
+		return eval(code, arguments);
+	}
+	
+	override ExprResult reduced()
+	{
+		return cast(ExprResult) new Closure(args, code, repr, context);
+	}
+	override bool opEquals(const Object o) const
+	{
+		if (typeid(o) == typeid(this))
+		{
+			auto oa = cast(Closure) o;
+			return this.args == oa.args && this.code == oa.code && this.context == oa.context;
+		}
+		else
+			return false;
+	}
+}
+
 
 
 ExprResult autoBuildList(ExprResult[] elements, long maxValue=0)

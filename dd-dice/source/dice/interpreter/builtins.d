@@ -76,13 +76,17 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 		case "case": // kinda meta
 			res = fCase(context, args);
 			break;
+		case "def":
+			res = fDef(context, args);
+			break;
 		
 		
 		default:
 			throw new EvalException("Unknown function: "~name);
 	}
 	
-	res.reprTree = Repr(args.map!(it=>it.reprTree).array, name, res.to!string, ReprOpt.dotCall);
+	if (name != "def")
+		res.reprTree = Repr(args.map!(it=>it.reprTree).array, name, res.to!string, ReprOpt.dotCall);
 	return res;
 }
 
@@ -351,4 +355,13 @@ ExprResult fCase(Context context, ExprResult[] args)
 		if (c[0].value.get!(ExprResult[]).canFind(target))
 			return c[1];
 	return defaultResult;
+}
+
+
+ExprResult fDef(Context context, ExprResult[] args)
+{
+	assert(args.length == 2);
+	assert(args[0].isExactlyA!String);
+	
+	return context[args[0].value.get!string] = args[1];
 }

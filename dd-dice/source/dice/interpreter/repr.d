@@ -20,7 +20,7 @@ string prettyList(string[] inputs, bool explain=false, string separator=",")
 	for(ulong i=0;i<inputs.length;i++)
 	{
 		res~=inputs[i];
-		if (i<inputs.length-1)
+		if (i+1<inputs.length)
 		{
 			res~=separator;
 			if (explain)
@@ -81,7 +81,7 @@ struct Repr
 			else if (o==ReprOpt.comparison)
 			{
 				isComparison=true;
-				assert(leaves.length == input.length-1);
+				assert(leaves.length+1 == input.length);
 			}
 			else if (o==ReprOpt.dotCall)
 			{

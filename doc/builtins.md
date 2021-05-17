@@ -114,4 +114,11 @@ Maybe handier with an example:
 )
 ```
 This returns `1` if the roll is from 1 to 10, `2` if the roll is 11, 13, or 15, 
-and else 3. 
+and else 3.
+
+
+#### def
+
+`ExprResult def(String, ExprResult)`
+
+Define the identifier `String` as the value `ExprResult`.

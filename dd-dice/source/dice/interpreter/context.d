@@ -98,3 +98,11 @@ class Context
 }
 
 
+
+Context global(Context c)
+{
+	if (c.outer)
+		return c.outer.global;
+	else
+		return c;
+}
