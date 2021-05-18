@@ -2,6 +2,7 @@
 module dice.interpreter.context;
 
 import std.conv;
+import std.uni:toLower;
 import core.exception:RangeError;
 
 import dice.interpreter.types;
@@ -20,6 +21,7 @@ class Context
 	
 	ExprResult opIndex(string i)
 	{
+		i=i.toLower;
 		if (i in contents)
 			return contents[i];
 		else
@@ -33,11 +35,13 @@ class Context
 	
 	ExprResult opIndexAssign(ExprResult val, string key)
 	{
+		key=key.toLower;
 		return contents[key] = val;
 	}
 	
 	auto opBinaryRight(string op)(string lhs)
 	{
+		lhs=lhs.toLower;
 		static if (op == "in")
 		{
 			if (lhs in contents)
@@ -58,6 +62,7 @@ class Context
 	 +/
 	ExprResult overwrite(string key, ExprResult val)
 	{
+		key=key.toLower;
 		if (key in contents)
 			return contents[key] = val;
 		else

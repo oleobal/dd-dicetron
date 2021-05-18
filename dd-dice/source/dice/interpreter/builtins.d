@@ -6,6 +6,7 @@ import std.format;
 import std.algorithm;
 import std.array;
 import std.conv;
+import std.uni:toLower;
 
 import dice.roll;
 
@@ -16,16 +17,7 @@ import dice.interpreter.repr;
 
 ExprResult callFunction(string name, ExprResult[] args, Context context, string callingStyle="FunCall")
 {
-	string repr;
-	if (callingStyle == "DotCall" && args.length>0)
-	{
-		repr = args[0].repr~"."~name;
-		if (args.length>1)
-			repr~="("~args[1..$].map!(a=>a.repr).join(", ")~")";
-	}
-	else
-		repr = name~"("~args.map!(a=>a.repr).join(", ")~")";
-	
+	name=name.toLower;
 	ExprResult res;
 	switch (name)
 	{
