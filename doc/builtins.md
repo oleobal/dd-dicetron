@@ -122,3 +122,20 @@ and else 3.
 `ExprResult def(String, ExprResult)`
 
 Define the identifier `String` as the value `ExprResult`.
+
+Note that undefined identifiers are treated as unquoted strings.
+This means that the program `a.def(1);a.def(2)` fails, because in the first
+call `a` is undefined and thus resolves to the string `"a"`, but in the second
+one `a` is defined and thus resolves to the number `1`.
+
+#### function
+
+`Function function(StringList args, Expr)`
+
+This creates a function with the given arguments.
+
+The difference between this and the Lambda syntax (`a=>a+1`) is that the lambda
+syntax creates _Closures_, which have access to the context where they were
+created, whereas _Functions_ do not.
+
+Use `def` to bind a function to a symbol.

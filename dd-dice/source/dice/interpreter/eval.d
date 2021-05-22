@@ -206,16 +206,18 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			// fall back to builtins
 			return callFunction(
 				name,
-				tree.children[1..$].map!(a=>a.eval(context)).array,
+				tree.children[1..$],
 				context,
 				tree.name.chompPrefix("DiceExpr.")
 			);
 		
 		
+		case "ALambdaDef":
+			tree.children = ParseTree("arg", true, ["it"], tree.input, tree.begin, tree.end, [])
+			                ~ tree.children;
+			goto case;
 		case "LambdaDef":
-			auto args = ["it"];
-			if (tree.children.length > 1)
-				args = tree.children[0..$-1].map!(a=>a.matches[0]).array;
+			auto args = tree.children[0..$-1].map!(a=>a.matches[0]).array;
 			auto repr = args.join(",")~" => "~tree.children[$-1].matches.join();
 			return cast(ExprResult) new Closure(args, tree.children[$-1], repr, context);
 		

@@ -8,6 +8,8 @@ import std.array;
 import std.conv;
 import std.uni:toLower;
 
+import pegged.peg;
+
 import dice.roll;
 
 import dice.interpreter.context;
@@ -15,9 +17,25 @@ import dice.interpreter.types;
 import dice.interpreter.eval;
 import dice.interpreter.repr;
 
-ExprResult callFunction(string name, ExprResult[] args, Context context, string callingStyle="FunCall")
+ExprResult callFunction(string name, ParseTree[] args, Context context, string callingStyle="FunCall")
 {
 	name=name.toLower;
+	if (name == "function")
+	{
+		assert(args.length == 2);
+		StringList argsNames = cast(StringList) args[0].eval(context);
+		return new Function(
+			argsNames.value.get!(ExprResult[]).map!(it=>it.value.get!string).array, 
+			args[1],
+			args[1].matches.join
+		);
+	}
+	else
+		return callFunction(name, args.map!(a=>a.eval(context)).array, context, callingStyle);
+}
+
+ExprResult callFunction(string name, ExprResult[] args, Context context, string callingStyle="FunCall")
+{
 	ExprResult res;
 	switch (name)
 	{

@@ -40,6 +40,7 @@ There are currently:
    - `StringList`
    - `List` is used to mean "any of these" (abstract, can't exist),
      and `Roll` for the rolls
+  - `Function` and `Closure`
 
 ### Lists & ints
 

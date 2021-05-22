@@ -42,11 +42,12 @@ DiceExpr:
 	Number     <- ~([0-9]+)
 	
 	DotCall    < Primary "." Ident (
-	                "{" LambdaDef "}"
+	                "{" ALambdaDef "}"
 	                / ( "(" ( Expr ("," Expr )* :(",")? )? ")" )?
 	            )
 	FunCall    < Ident "(" ( Expr ("," Expr )* :(",")? )? ")"
-	LambdaDef  < ( Ident ("," Ident )* :(",")? "=>" )? Expr
+	LambdaDef  < ( Ident ("," Ident )* :(",")? "=>" ) Expr
+	ALambdaDef < Expr
 	
 	Ident      < identifier
 	String     <~ :doublequote (!doublequote DQChar)* :doublequote / :quote (!quote SQChar)* :quote
