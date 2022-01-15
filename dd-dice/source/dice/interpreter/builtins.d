@@ -209,7 +209,7 @@ Function checkListFilteringArgs(string f, ExprResult[] args)
 	if (args.length!=2)
 		throw new EvalException(f~" takes exactly two arguments");
 	if (!args[0].isA!List || args[0].isA!Function)
-		throw new EvalException(f~" takes a list and a lambda (that returns a bool)");
+		throw new EvalException(f~" takes a list and a callable");
 	Function lambda = cast(Function) args[1];
 	if (lambda.args.length != 1)
 		throw new EvalException("The lambda "~f~" takes must take exactly one argument (list item)");

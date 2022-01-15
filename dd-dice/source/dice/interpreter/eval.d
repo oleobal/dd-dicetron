@@ -176,17 +176,22 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 		// https://github.com/PhilippeSigaud/Pegged/wiki/Semantic-Actions
 		// can't get that working for UFCS (it would be better..)
 		case "DotCall":
-			auto funcName = tree.children[1];
-			auto firstArg = tree.children[0];
-			tree.children[0] = funcName;
-			tree.children[1] = firstArg;
-			goto case;
 		case "FunCall":
-			auto name = tree.children[0].matches[0];
+			
+			string name; ParseTree[] args;
+			if (tree.name.chompPrefix("DiceExpr.") == "DotCall")
+			{
+				name = tree.children[1].matches[0];
+				args = tree.children[0]~tree.children[2..$];
+			}
+			else
+			{
+				name = tree.children[0].matches[0];
+				args = tree.children[1..$];
+			}
 			if (name in context && context[name].isA!Function)
 			{
 				auto f = cast(Function) context[name];
-				auto args = tree.children[1..$];
 				auto fContext = new Context(context.global);
 				if (args.length != f.args.length)
 					throw new EvalException("Trying to call %s(%s) with the wrong number (%s) of args".format(name, f.args.join(","), args.length));
@@ -206,7 +211,7 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 			// fall back to builtins
 			return callFunction(
 				name,
-				tree.children[1..$],
+				args,
 				context,
 				tree.name.chompPrefix("DiceExpr.")
 			);
