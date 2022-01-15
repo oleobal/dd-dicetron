@@ -1,8 +1,8 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"dyaml": "0.8.3",
-		"pegged": "0.4.4",
+		"dyaml": "0.8.4",
+		"pegged": "0.4.5",
 		"tinyendian": "0.2.0"
 	}
 }
