@@ -40,10 +40,10 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 	switch (name)
 	{
 		case "best":
-			res = fBest!"a.reduced.value.get!long > b.reduced.value.get!long"(context, args);
+			res = fBest!">"(context, args);
 			break;
 		case "worst":
-			res = fBest!"a.reduced.value.get!long < b.reduced.value.get!long"(context, args);
+			res = fBest!"<"(context, args);
 			break;
 		
 		case "explode":
@@ -96,14 +96,19 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 	}
 	
 	if (name != "def")
-		res.reprTree = Repr(args.map!(it=>it.reprTree).array, name, res.to!string, ReprOpt.dotCall);
+	{
+		if (callingStyle=="DotCall")
+			res.reprTree = Repr(args.map!(it=>it.reprTree).array, name, res.to!string, ReprOpt.dotCall);
+		else
+			res.reprTree = Repr(args.map!(it=>it.reprTree).array, name, res.to!string);
+	}
 	return res;
 }
 
 
 
 
-ExprResult fBest(alias predicate)(Context context, ExprResult[] args)
+ExprResult fBest(alias operator)(Context context, ExprResult[] args)
 {
 	auto nbToTake=1L;
 	if (args.length>2)
@@ -116,15 +121,42 @@ ExprResult fBest(alias predicate)(Context context, ExprResult[] args)
 		throw new EvalException("best & worst only handle numeric types");
 	if (args[0].isA!List)
 	{
+		ExprResult[] result = [args[0].value.get!(ExprResult[])[0]];
+		ulong worstResultIndex=0;
+		
+		foreach(e;args[0].value.get!(ExprResult[])[1..$])
+		{
+			if (result.length < nbToTake)
+			{
+				result~=e;
+				if (mixin(q{result[worstResultIndex].reduced.value.get!long}~ operator ~q{result[$-1].reduced.value.get!long}))
+					worstResultIndex=result.length-1;
+			}
+			else
+			{
+				if (mixin(q{e.reduced.value.get!long}~ operator ~q{result[worstResultIndex].reduced.value.get!long}))
+				{
+					result=result.remove(worstResultIndex);
+					result~=e;
+					worstResultIndex=0;
+					foreach (i, r;result) // this is inefficient but whatever
+						if(mixin(q{result[worstResultIndex].reduced.value.get!long}~operator~q{r.reduced.value.get!long}))
+							worstResultIndex=i;
+				}
+				
+			}
+			
+		}
+		
 		if (args[0].isA!Bool)
-			return new BoolList(args[0].value.get!(ExprResult[]).sort!(predicate)[0..nbToTake].array);
+			return new BoolList(result);
 		else if (args[0].isA!NumRoll)
 			return new NumList(
-				args[0].value.get!(ExprResult[]).sort!(predicate)[0..nbToTake].array,
+				result,
 				(cast(NumRoll) args[0]).maxValue
 			);
 		else
-			return new NumList(args[0].value.get!(ExprResult[]).sort!(predicate)[0..nbToTake].array);
+			return new NumList(result);
 	}
 	else
 		return args[0];
@@ -269,7 +301,7 @@ ExprResult fMax(alias predicate)(Context context, ExprResult[] args)
 	if (!args.all!(it=>it.isA!Num))
 		throw new EvalException("min & max only handle numeric types");
 	
-	return args.sort!(predicate)[0];
+	return reduce!(predicate~"? a:b")(args);
 }
 
 
@@ -338,17 +370,8 @@ ExprResult fGet(Context context, ExprResult[] args)
 
 ExprResult fSort(alias predicate)(Context context, ExprResult[] args)
 {
-	if (args.length != 1 || !(args[0].isA!Num && args[0].isA!List))
-		throw new EvalException("sort takes a numeric list");
-	if (args[0].isA!Bool)
-		return new BoolList(args[0].value.get!(ExprResult[]).sort!(predicate).array);
-	else if (args[0].isA!NumRoll)
-		return new NumList(
-			args[0].value.get!(ExprResult[]).sort!(predicate).array,
-			(cast(NumRoll) args[0]).maxValue
-		);
-	else
-		return new NumList(args[0].value.get!(ExprResult[]).sort!(predicate).array);
+	throw new EvalException("Sort: not implemented");
+	// disabled until I'm sure it doesn't mess with the input
 }
 
 
