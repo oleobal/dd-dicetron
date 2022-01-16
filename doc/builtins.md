@@ -136,3 +136,5 @@ syntax creates _Closures_, which have access to the context where they were
 created, whereas _Functions_ do not.
 
 Use `def` to bind a function to a symbol.
+
+Example: `def("double", function(["a"], a*2)); 3d6.map{it.double}`
