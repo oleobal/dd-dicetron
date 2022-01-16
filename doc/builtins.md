@@ -19,9 +19,6 @@ Return the `nbToTake` best or worst elements of the list.
 
 **Example:** `3d20.best(2).worst` yields `[7+12+19].best(2).worst: 12`
 
-As a side of effect of implementation, the output is sorted, but there is no
-guarantee of that.
-
 #### explode
 
 `NumList explode(NumList)`
