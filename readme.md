@@ -16,7 +16,7 @@ connecting to Discord
 
 Together they are.. ***DD-Dicetron!***
 
-[Documentation here](doc/)
+[Documentation here](/doc/)
 
 ## Features
 
@@ -59,7 +59,7 @@ These are on top of the features from `dd-dice`:
 
 ## Development
 
-Read [my notes about the language](/doc/language.md).
+[Read the documentation](/doc/)
 
 ### DD-Dice
 
