@@ -6,7 +6,9 @@ mixin(grammar(`
 DiceExpr:
 	FullExpr   < ExprList :EndOfInput
 	ExprList   < Expr ( ";" Expr )* :(";")?
-	Expr       < Comp / Term
+	Expr       < Ternary / Comp / Term
+	
+	Ternary    < Expr "?" Expr ":" Expr
 	
 	Comp       < Term (Eq / NEq / Inf / InfEq / Sup / SupEq)+
 	

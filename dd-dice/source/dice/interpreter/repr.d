@@ -38,6 +38,7 @@ enum ReprOpt {
 	parens,
 	arithmetic,
 	comparison,
+	ternary,
 	dotCall
 }
 
@@ -52,6 +53,7 @@ struct Repr
 	bool isParens;
 	bool isArithmetic;
 	bool isComparison;
+	bool isTernary;
 	bool isDotCall;
 	
 	string[] leaves;
@@ -87,6 +89,11 @@ struct Repr
 			{
 				assert(input.length>0);
 				isDotCall=true;
+			}
+			else if (o==ReprOpt.ternary)
+			{
+				assert(input.length>0);
+				isTernary=true;
 			}
 			else
 				throw new Exception("Unknown ReprOpt: %s".format(o));
@@ -157,6 +164,20 @@ struct Repr
 	{
 		if (isLeaf)
 			return leaves[0];
+		
+		if (isTernary)
+		{
+			string res = input[0].toString(explain);
+			
+			if (explain)
+				res~="\n";
+			res~="?";
+			if (explain)
+				res=res.indent(1,'|');
+			if (explain)
+				res~="->"~output;
+			return res;
+		}
 		
 		// chained arithmetic (eg 1 > 2 > 3)
 		// FIXME pretty sure arithmetic and comparison can be merged

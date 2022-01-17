@@ -43,6 +43,18 @@ ExprResult eval(ParseTree tree, Context context=new Context())
 	}
 	switch (tree.name.chompPrefix("DiceExpr."))
 	{
+		case "Ternary":
+			if (auto conditionResult = cast(Bool) tree.children[0].eval(context).reduced)
+			{
+				ExprResult result = tree.children[(conditionResult.value.get!long^1)+1].eval(context).reduced;
+				result.reprTree = Repr([conditionResult.reprTree], "?", result.toString, ReprOpt.ternary);
+				return result;
+			}
+			else
+			{
+				throw new EvalException("Expression "~tree.children[0].input~" did not return a boolean");
+			}
+		
 		case "Comp":
 			auto prevOperand = tree.children[0].eval(context).reduced;
 			auto result = cast(ExprResult) new Bool(true, prevOperand.repr);
