@@ -235,7 +235,8 @@ class String : ExprResult
 	this() {}
 	this (string a) { value = a; repr = a; }
 	this (string a, string b) { value = a; repr = b; }
-	override ExprResult reduced() {return cast(ExprResult) new String(value.get!string, repr);}
+	this (string a, Repr b) { value = a; reprTree = b; }
+	override ExprResult reduced() {return cast(ExprResult) new String(value.get!string, reprTree);}
 }
 class StringList : String, List
 {
