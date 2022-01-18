@@ -63,6 +63,9 @@ ExprResult callFunction(string name, ExprResult[] args, Context context, string 
 		case "all":
 			res = fAll(context, args);
 			break;
+		case "count":
+			res = fCount(context, args);
+			break;
 		
 		
 		case "max":
@@ -273,7 +276,7 @@ ExprResult fAny(Context context, ExprResult[] args)
 
 ExprResult fAll(Context context, ExprResult[] args)
 {
-	auto lambda = checkListFilteringArgs("any", args);
+	auto lambda = checkListFilteringArgs("all", args);
 	auto result = true;
 	auto lambdaContext = new Context(context);
 	auto l = args[0].value.get!(ExprResult[]);
@@ -292,6 +295,26 @@ ExprResult fAll(Context context, ExprResult[] args)
 	return new Bool(result);
 }
 
+ExprResult fCount(Context context, ExprResult[] args)
+{
+	auto lambda = checkListFilteringArgs("count", args);
+	auto result = 0;
+	auto lambdaContext = new Context(context);
+	auto l = args[0].value.get!(ExprResult[]);
+	foreach(a;l)
+	{
+		lambdaContext[lambda.args[0]] = a;
+		auto r = eval(lambda.code, lambdaContext);
+		if (r.reduced.isA!Bool)
+		{
+			if (r.value.get!bool)
+				result++;
+		}
+		else
+			throw new EvalException("Lambda "~lambda.repr~" returned a "~typeid(r).to!string~" instead of a bool");
+	}
+	return new Num(result);
+}
 
 
 ExprResult fMax(alias predicate)(Context context, ExprResult[] args)

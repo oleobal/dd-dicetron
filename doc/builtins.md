@@ -64,6 +64,13 @@ Returns `true` if `Function` returns `true` for at least one element in `List`
 
 Both return `false` if the list is empty.
 
+#### count
+
+`Num count(List, Function)`
+
+Returns the number of times `Function` returned `true` for each element
+in the list.
+
 ### Plumbing
 
 You probably won't need these.
