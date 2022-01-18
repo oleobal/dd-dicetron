@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+set -eu
 
 DOCKER_BUILDKIT=1 docker build . -t dd-dicetron
 
