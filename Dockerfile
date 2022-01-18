@@ -10,7 +10,7 @@ COPY dd-dice /tmp
 
 WORKDIR /tmp
 
-RUN dub -v build
+RUN dub -v build -b release
 
 FROM ubuntu:hirsute
 ENV DEBIAN_FRONTEND=noninteractive 
