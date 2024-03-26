@@ -1,4 +1,2 @@
-bot-env/*
-lib/.dd-data/*
-__pycache__/
-*.pyc
+node_modules
+.env

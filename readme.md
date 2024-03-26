@@ -47,15 +47,6 @@ Custom dice are supported instead of `d<number>`:
 It attempts to tell you what your rolls were, but that gets complicated when
 you feed results of a roll into another.
 
-### Discord features
-
-These are on top of the features from `dd-dice`:
-
- - comments
- - per-user per-channel history of recent commands
- - persistent per-server prefix change.
- - persistent per-server module management
-
 
 ## Development
 
@@ -70,43 +61,25 @@ These are on top of the features from `dd-dice`:
 
 ### Dicetron
 
- - Install Python 3
- - `cd dicetron`
- - `./set-up` and follow the instructions
- - `export` these variable:
-   - `DD_DICE_PATH` to the dd-dice executable
-   - `DD_DISCORD_API_TOKEN` to your API key
- - `./dicetron` runs the program
- - the rest of the source is in `lib/`
+NodeJS application to handle connecting to Discord, based on https://github.com/discord/discord-example-app.
 
-## Production usage
+My usage is not advanced so I tried implementing it in vibe-d but D has no turnkey crypto library for verifying the calls from Discord.
 
-### As a standalone program
+You can test commands by running the server in dev mode:
+```sh
+DEV_MODE=true node src/app.js
+```
 
-Not sure why anyone would but you _can_ use dd-dice on its own, on the terminal.
+.. and POSTing requests to it:
+```sh
+curl http://localhost:3000/interactions -H "Content-Type: application/json" --data '{"type": 2, "id": "0", "data": {"name": "roll", "options":[{"value": "3d4"}]}}'
+```
 
-### As a Discord bot
 
-Can be run as in development but it's probably best to run `./build` and get
-[a Docker image](https://hub.docker.com/r/oleobal/dd-dicetron).
-Set your API token when running: `docker run --env DD_DISCORD_API_TOKEN='<..>' oleobal/dd-dicetron`
-
-For persistence, set the `DD_DATA_DIR` variable and mount a volume or bind mount
-a folder there.
-
-Also of interest, `DD_MODULES_PATH` tells Dicetron where to look for available
-modules. However, the image is packaged with a few by default already.
-
-Example docker-compose configuration:
-```yaml
-services:
-  dd-dicetron:
-    image: "oleobal/dd-dicetron"
-    environment:
-      - 'DD_DISCORD_API_TOKEN=<your token>'
-      - 'DD_DATA_DIR=/dd-data'
-    volumes:
-      - 'dd-data:/dd-data'
-volumes:
-  dd-data: {}
+To run the full discord app:
+```sh
+printf 'APP_ID=%s\nDISCORD_TOKEN=%s\nPUBLIC_KEY%s\n' YOUR_APP_ID YOUR_DISCORD_TOKEN YOUR_PUBLIC_KEY > .env
+printf 'DD_DICE_PATH=%s\n' PATH_TO_DD_DICE_EXECUTABLE >> .env
+npm run register
+node src/app.js
 ```

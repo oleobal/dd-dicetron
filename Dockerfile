@@ -1,4 +1,4 @@
-FROM ubuntu:hirsute AS build
+FROM debian:bookworm AS build
 ENV DEBIAN_FRONTEND=noninteractive 
 
 RUN \
@@ -10,36 +10,26 @@ COPY dd-dice /tmp
 
 WORKDIR /tmp
 
+
 RUN dub -v build -b release
 
-FROM ubuntu:hirsute
-ENV DEBIAN_FRONTEND=noninteractive 
+FROM node:21-bookworm
 
 RUN \
   apt-get -qq update && \
-  apt-get -qq install libphobos2-ldc-shared-dev zlib1g libssl1.1 && \
+  apt-get -qq install libphobos2-ldc-shared-dev zlib1g libssl3 && \
   rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /tmp/dd-dice /
-
-
-RUN apt-get -qq update && apt-get -qq install python3 python3-pip
-
-COPY dicetron/dicetron /
-COPY dicetron/lib /lib
-COPY dicetron/requirements.txt /
-RUN python3 -m pip install -r /requirements.txt
-
-
-RUN mkdir /dd-modules && chown nobody /dd-modules
-COPY dd-dice/modules /dd-modules
-
-RUN mkdir /dd-data && chown nobody /dd-data
-USER nobody
 ENV DD_DICE_PATH="/dd-dice"
-ENV DD_DATA_DIR="/dd-data"
+
+COPY dicetron /dicetron
+WORKDIR dicetron
+RUN npm install
+
+COPY dd-dice/modules /dd-modules
 ENV DD_MODULES_PATH="/dd-modules"
-#ENV DD_DISCORD_API_TOKEN
 
+ENV PORT=80
 
-ENTRYPOINT ["/dicetron"]
+ENTRYPOINT ["/dicetron/start.sh"]

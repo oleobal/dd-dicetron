@@ -1,18 +1,24 @@
-import json
-import subprocess
-import os
+import { spawnSync } from "child_process";
 
-from . import util
+export class UserInputError extends Error {}
 
+export function getHelp() {
+  const p = spawnSync(process.env.DD_DICE_PATH, ["--help"]);
+  if (p.status !== 0) throw new Error();
+  return p.stdout.toString();
+}
 
-def get_help():
-    p = subprocess.run([os.environ["DD_DICE_PATH"], "--help"], capture_output=True)
-    if p.returncode == 0:
-        return p.stdout.decode("utf-8")
-    else:
-        return "Error"
+export function rollDice(expr) {
+  const p = spawnSync(process.env.DD_DICE_PATH, ["--json", expr]);
 
-
+  if (p.status !== 0) throw new Error();
+  let r = JSON.parse(p.stdout);
+  if (!r.successful) {
+    throw new UserInputError(r.error);
+  }
+  return `\`${r.repr}\`: **${r.output}**`;
+}
+/*
 def roll_dice(
     expr: str, available_modules: dict, enabled_modules: list, explain=False
 ) -> tuple[bool, str]:
@@ -41,3 +47,4 @@ def roll_dice(
 
     else:
         return (False, "Error")
+*/
